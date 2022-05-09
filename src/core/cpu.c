@@ -217,6 +217,26 @@ static void cpuOpcodeAddL(void);
 static void cpuOpcodeAddS(void);
 
 /**
+ * @brief Executes the ADDX opcode.
+ */
+static void cpuOpcodeAddX(void);
+
+/**
+ * @brief Executes the AND.B opcode.
+ */
+static void cpuOpcodeAndB(void);
+
+/**
+ * @brief Executes the AND.W opcode.
+ */
+static void cpuOpcodeAndW(void);
+
+/**
+ * @brief Executes the AND.L opcode.
+ */
+static void cpuOpcodeAndL(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -299,7 +319,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x13: return cpuDecodeGroup2();
         case 0x14: // TODO: OR.B
         case 0x15: // TODO: XOR.B
-        case 0x16: // TODO: AND.B
+        case 0x16: return cpuOpcodeAndB;
         case 0x17: return cpuDecodeGroup2();
         case 0x18: // SUB.B
         case 0x19: // SUB.W
@@ -379,7 +399,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x63: // TODO: BTST
         case 0x64: // TODO: OR.W
         case 0x65: // TODO: XOR.W
-        case 0x66: // TODO: AND.W
+        case 0x66: return cpuOpcodeAndW;
         case 0x67:
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
                 // TODO: BST
@@ -556,7 +576,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0xec:
         case 0xed:
         case 0xee:
-        case 0xef: // TODO: AND
+        case 0xef: return cpuOpcodeAndB;
         case 0xf0:
         case 0xf1:
         case 0xf2:
@@ -699,14 +719,14 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x793: // TODO: SUB
         case 0x794: // TODO: OR
         case 0x795: // TODO: XOR
-        case 0x796: // TODO: AND
+        case 0x796: return cpuOpcodeAndW;
         case 0x7a0: // TODO: MOV
         case 0x7a1: return cpuOpcodeAddL;
         case 0x7a2: // TODO: CMP
         case 0x7a3: // TODO: SUB
         case 0x7a4: // TODO: OR
         case 0x7a5: // TODO: XOR
-        case 0x7a6: // TODO: AND
+        case 0x7a6: return cpuOpcodeAndL;
 
         default:
             return cpuOpcodeUndefined;
@@ -996,16 +1016,16 @@ static void cpuOpcodeAddW(void) {
 static void cpuOpcodeAddL(void) {
     uint32_t l_operand1;
     uint32_t l_operand2;
-    int l_rd;
+    int l_erd;
 
     if((s_opcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
-        l_operand1 = cpuGetRegister16((s_opcodeBuffer[0] & 0x00f0) >> 4);
+        l_operand1 = cpuGetRegister32((s_opcodeBuffer[0] & 0x00f0) >> 4);
     } else { // ADD.L #xx:32, Rd
         l_operand1 = cpuFetch32();
     }
 
-    l_rd = s_opcodeBuffer[0] & 0x000f;
-    l_operand2 = cpuGetRegister16(l_rd);
+    l_erd = s_opcodeBuffer[0] & 0x000f;
+    l_operand2 = cpuGetRegister32(l_erd);
 
     uint32_t l_result = l_operand1 + l_operand2;
 
@@ -1025,7 +1045,7 @@ static void cpuOpcodeAddL(void) {
     );
     s_cpuFlagsRegister.bitField.carry = l_result < l_operand1;
 
-    cpuSetRegister16(l_rd, l_result);
+    cpuSetRegister32(l_erd, l_result);
 }
 
 static void cpuOpcodeAddS(void) {
@@ -1078,6 +1098,79 @@ static void cpuOpcodeAddX(void) {
     s_cpuFlagsRegister.bitField.carry = (l_result & 0x0100) != 0;
 
     cpuSetRegister8(l_rd, l_result);
+}
+
+static void cpuOpcodeAndB(void) {
+    uint8_t l_operand1;
+    uint8_t l_operand2;
+    int l_rd;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x1600) { // AND.B Rs, Rd
+        l_rd = s_opcodeBuffer[0] & 0x000f;
+        l_operand1 = cpuGetRegister8((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    } else { // AND.B #xx:8, Rd
+        l_rd = (s_opcodeBuffer[0] & 0x0f00) >> 8;
+        l_operand1 = s_opcodeBuffer[0] & 0x00ff;
+    }
+
+    l_operand2 = cpuGetRegister8(l_rd);
+
+    uint16_t l_result = l_operand1 & l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister8(l_rd, l_result);
+}
+
+static void cpuOpcodeAndW(void) {
+    uint16_t l_operand1;
+    uint16_t l_operand2;
+    int l_rd;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x6600) { // AND.W Rs, Rd
+        l_operand1 = cpuGetRegister16((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    } else { // ADD.W #xx:16, Rd
+        l_operand2 = cpuFetch16();
+    }
+
+    l_rd = s_opcodeBuffer[0] & 0x000f;
+    l_operand2 = cpuGetRegister16(l_rd);
+
+    uint32_t l_result = l_operand1 & l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister16(l_rd, l_result);
+}
+
+static void cpuOpcodeAndL(void) {
+    uint32_t l_operand1;
+    uint32_t l_operand2;
+    int l_erd;
+
+    if((s_opcodeBuffer[0] & 0xfff8) == 0x7a60) { // AND.L ERs, ERd
+        s_opcodeBuffer[1] = cpuFetch16();
+
+        l_operand1 = cpuGetRegister32((s_opcodeBuffer[1] & 0x0070) >> 4);
+        l_erd = s_opcodeBuffer[1] & 0x0007;
+    } else { // AND.L #xx:32, ERd
+        l_operand1 = cpuFetch32();
+        l_erd = s_opcodeBuffer[0] & 0x0007;
+    }
+
+    l_operand2 = cpuGetRegister32(l_erd);
+
+    uint32_t l_result = l_operand1 & l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister32(l_erd, l_result);
 }
 
 static void cpuOpcodeNop(void) {
