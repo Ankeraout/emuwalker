@@ -52,6 +52,25 @@ enum te_cpuRegister {
     E_CPUREGISTER_ER7
 };
 
+enum te_cpuConditionCode {
+    E_CPUCONDITIONCODE_AL,
+    E_CPUCONDITIONCODE_NV,
+    E_CPUCONDITIONCODE_HI,
+    E_CPUCONDITIONCODE_LS,
+    E_CPUCONDITIONCODE_CC,
+    E_CPUCONDITIONCODE_CS,
+    E_CPUCONDITIONCODE_NE,
+    E_CPUCONDITIONCODE_EQ,
+    E_CPUCONDITIONCODE_VC,
+    E_CPUCONDITIONCODE_VS,
+    E_CPUCONDITIONCODE_PL,
+    E_CPUCONDITIONCODE_MI,
+    E_CPUCONDITIONCODE_GE,
+    E_CPUCONDITIONCODE_LT,
+    E_CPUCONDITIONCODE_GT,
+    E_CPUCONDITIONCODE_LE,
+};
+
 union tu_cpuGeneralRegister {
     uint32_t longWord;
 
@@ -197,6 +216,17 @@ static inline void cpuSetRegister32(
 );
 
 /**
+ * @brief Checks if the given condition code is true or false.
+ *
+ * @param[in] p_conditionCode The condition code to check.
+ *
+ * @returns The value of the condition code.
+ */
+static inline bool cpuCheckConditionCode(
+    enum te_cpuConditionCode p_conditionCode
+);
+
+/**
  * @brief Executes the ADD.B opcode.
  */
 static void cpuOpcodeAddB(void);
@@ -245,6 +275,11 @@ static void cpuOpcodeAndC(void);
  * @brief Executes the BAND opcode.
  */
 static void cpuOpcodeBand(void);
+
+/**
+ * @brief Executes the Bcc opcode (cc being a condition code).
+ */
+static void cpuOpcodeBcc(void);
 
 /**
  * @brief Executes the NOP opcode.
@@ -371,22 +406,22 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x3d:
         case 0x3e:
         case 0x3f: // TODO: MOV.B
-        case 0x40: // TODO: BRA
-        case 0x41: // TODO: BRN
-        case 0x42: // TODO: BHI
-        case 0x43: // TODO: BLS
-        case 0x44: // TODO: BCC
-        case 0x45: // TODO: BCS
-        case 0x46: // TODO: BNE
-        case 0x47: // TODO: BEQ
-        case 0x48: // TODO: BVC
-        case 0x49: // TODO: BVS
-        case 0x4a: // TODO: BPL
-        case 0x4b: // TODO: BMI
-        case 0x4c: // TODO: BGE
-        case 0x4d: // TODO: BLT
-        case 0x4e: // TODO: BGT
-        case 0x4f: // TODO: BLE
+        case 0x40:
+        case 0x41:
+        case 0x42:
+        case 0x43:
+        case 0x44:
+        case 0x45:
+        case 0x46:
+        case 0x47:
+        case 0x48:
+        case 0x49:
+        case 0x4a:
+        case 0x4b:
+        case 0x4c:
+        case 0x4d:
+        case 0x4e:
+        case 0x4f: return cpuOpcodeBcc;
         case 0x50: // TODO: MULXU
         case 0x51: // TODO: DIVXU
         case 0x52: // TODO: MULXU
@@ -707,22 +742,22 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x1fd:
         case 0x1fe:
         case 0x1ff: // TODO: CMP
-        case 0x580: // TODO: BRA
-        case 0x581: // TODO: BRN
-        case 0x582: // TODO: BHI
-        case 0x583: // TODO: BLS
-        case 0x584: // TODO: BCC
-        case 0x585: // TODO: BCS
-        case 0x586: // TODO: BNE
-        case 0x587: // TODO: BEQ
-        case 0x588: // TODO: BVC
-        case 0x589: // TODO: BVS
-        case 0x58a: // TODO: BPL
-        case 0x58b: // TODO: BMI
-        case 0x58c: // TODO: BGE
-        case 0x58d: // TODO: BLT
-        case 0x58e: // TODO: BGT
-        case 0x58f: // TODO: BLE
+        case 0x580:
+        case 0x581:
+        case 0x582:
+        case 0x583:
+        case 0x584:
+        case 0x585:
+        case 0x586:
+        case 0x587:
+        case 0x588:
+        case 0x589:
+        case 0x58a:
+        case 0x58b:
+        case 0x58c:
+        case 0x58d:
+        case 0x58e:
+        case 0x58f: return cpuOpcodeBcc;
         case 0x790: // TODO: MOV
         case 0x791: return cpuOpcodeAddW;
         case 0x792: // TODO: CMP
@@ -950,6 +985,65 @@ static inline void cpuSetRegister32(
     uint32_t p_value
 ) {
     s_cpuGeneralRegisters[p_register].longWord = p_value;
+}
+
+static inline bool cpuCheckConditionCode(
+    enum te_cpuConditionCode p_conditionCode
+) {
+    switch(p_conditionCode) {
+        case E_CPUCONDITIONCODE_AL: return true;
+        case E_CPUCONDITIONCODE_HI:
+            return !(
+                s_cpuFlagsRegister.bitField.carry
+                | s_cpuFlagsRegister.bitField.zero
+            );
+
+        case E_CPUCONDITIONCODE_LS:
+            return s_cpuFlagsRegister.bitField.carry
+                | s_cpuFlagsRegister.bitField.zero;
+
+        case E_CPUCONDITIONCODE_CC: return !s_cpuFlagsRegister.bitField.carry;
+        case E_CPUCONDITIONCODE_CS: return s_cpuFlagsRegister.bitField.carry;
+        case E_CPUCONDITIONCODE_NE: return !s_cpuFlagsRegister.bitField.zero;
+        case E_CPUCONDITIONCODE_EQ: return s_cpuFlagsRegister.bitField.zero;
+        case E_CPUCONDITIONCODE_VC:
+            return !s_cpuFlagsRegister.bitField.overflow;
+
+        case E_CPUCONDITIONCODE_VS: return s_cpuFlagsRegister.bitField.overflow;
+        case E_CPUCONDITIONCODE_PL:
+            return !s_cpuFlagsRegister.bitField.negative;
+
+        case E_CPUCONDITIONCODE_MI: return s_cpuFlagsRegister.bitField.negative;
+        case E_CPUCONDITIONCODE_GE:
+            return !(
+                s_cpuFlagsRegister.bitField.negative
+                ^ s_cpuFlagsRegister.bitField.overflow
+            );
+
+        case E_CPUCONDITIONCODE_LT:
+            return s_cpuFlagsRegister.bitField.negative
+                ^ s_cpuFlagsRegister.bitField.overflow;
+
+        case E_CPUCONDITIONCODE_GT:
+            return !(
+                s_cpuFlagsRegister.bitField.zero
+                | (
+                    s_cpuFlagsRegister.bitField.negative
+                    ^ s_cpuFlagsRegister.bitField.overflow
+                )
+            );
+
+        case E_CPUCONDITIONCODE_LE:
+            return
+                s_cpuFlagsRegister.bitField.zero
+                | (
+                    s_cpuFlagsRegister.bitField.negative
+                    ^ s_cpuFlagsRegister.bitField.overflow
+                );
+
+        default:
+            return false;
+    }
 }
 
 static void cpuOpcodeAddB(void) {
@@ -1209,6 +1303,23 @@ static void cpuOpcodeBand(void) {
     }
 
     s_cpuFlagsRegister.bitField.carry &= (l_operand & (1 << l_imm)) != 0;
+}
+
+static void cpuOpcodeBcc(void) {
+    enum te_cpuConditionCode l_conditionCode;
+    int16_t l_disp;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x5800) {
+        l_disp = cpuFetch16();
+        l_conditionCode = (s_opcodeBuffer[0] & 0x00f0) >> 4;
+    } else {
+        l_disp = (int16_t)((int8_t)s_opcodeBuffer[0]);
+        l_conditionCode = (s_opcodeBuffer[0] & 0x0f00) >> 8;
+    }
+
+    if(cpuCheckConditionCode(l_conditionCode)) {
+        s_cpuRegisterPC += l_disp;
+    }
 }
 
 static void cpuOpcodeNop(void) {
