@@ -212,6 +212,11 @@ static void cpuOpcodeAddW(void);
 static void cpuOpcodeAddL(void);
 
 /**
+ * @brief Executes the ADDS opcode.
+ */
+static void cpuOpcodeAddS(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -286,7 +291,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x0b: return cpuDecodeGroup2();
         case 0x0c:
         case 0x0d: // TODO: MOV
-        case 0x0e: // TODO: ADDX
+        case 0x0e: return cpuOpcodeAddX;
         case 0x0f: return cpuDecodeGroup2();
         case 0x10:
         case 0x11:
@@ -471,7 +476,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x9c:
         case 0x9d:
         case 0x9e:
-        case 0x9f: // TODO: ADDX
+        case 0x9f: return cpuOpcodeAddX;
         case 0xa0:
         case 0xa1:
         case 0xa2:
@@ -597,11 +602,11 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x0ad:
         case 0x0ae:
         case 0x0af: return cpuOpcodeAddL;
-        case 0x0b0: // TODO: ADDS
+        case 0x0b0: return cpuOpcodeAddS;
         case 0x0b5: // TODO: INC
         case 0x0b7: // TODO: INC
         case 0x0b8:
-        case 0x0b9: // TODO: ADDS
+        case 0x0b9: return cpuOpcodeAddS;
         case 0x0bd:
         case 0x0bf: // TODO: INC
         case 0x0f0: // TODO: DAA
@@ -1021,6 +1026,58 @@ static void cpuOpcodeAddL(void) {
     s_cpuFlagsRegister.bitField.carry = l_result < l_operand1;
 
     cpuSetRegister16(l_rd, l_result);
+}
+
+static void cpuOpcodeAddS(void) {
+    int l_erd = s_opcodeBuffer[0] & 0x0007;
+    int32_t l_erdValue =
+        (int32_t)((int16_t)s_cpuGeneralRegisters[l_erd].word.r);
+
+    int32_t l_operand2;
+
+    if((s_opcodeBuffer[0] & 0x00f0) == 0x0000) { // ADDS #1, ERd
+        l_operand2 = 1;
+    } else if((s_opcodeBuffer[0] & 0x00f0) == 0x0080) { // ADDS #2, ERd
+        l_operand2 = 2;
+    } else if((s_opcodeBuffer[0] & 0x00f0) == 0x0090) { // ADDS #4, ERd
+        l_operand2 = 4;
+    }
+
+    s_cpuGeneralRegisters[l_erd].longWord = l_erdValue + l_operand2;
+}
+
+static void cpuOpcodeAddX(void) {
+    int l_rd;
+    uint8_t l_operand1;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x0e00) { // ADDX #xx:8, Rd
+
+    } else { // ADDX Rs, Rd
+        l_rd = s_opcodeBuffer[0] & 0x000f;
+        l_operand1 = cpuGetRegister8((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    }
+
+    uint8_t l_operand2 = cpuGetRegister8(l_rd);
+    uint16_t l_carry = s_cpuFlagsRegister.bitField.carry ? 1 : 0;
+    uint16_t l_result = l_operand1 + l_operand2 + l_carry;
+
+    s_cpuFlagsRegister.bitField.halfCarry = (
+        (
+            (
+                (l_operand1 & 0x0f)
+                + (l_operand2 & 0x0f)
+            ) & 0x10
+        ) != 0
+    );
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = (
+        (((l_operand1 ^ l_operand2) & 0x80) == 0)
+        && (((l_operand1 ^ l_result) & 0x80) != 0)
+    );
+    s_cpuFlagsRegister.bitField.carry = (l_result & 0x0100) != 0;
+
+    cpuSetRegister8(l_rd, l_result);
 }
 
 static void cpuOpcodeNop(void) {
