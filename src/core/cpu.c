@@ -237,6 +237,16 @@ static void cpuOpcodeAndW(void);
 static void cpuOpcodeAndL(void);
 
 /**
+ * @brief Executes the ANDC opcode.
+ */
+static void cpuOpcodeAndC(void);
+
+/**
+ * @brief Executes the BAND opcode.
+ */
+static void cpuOpcodeBand(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -303,7 +313,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x03: // TODO: LDC
         case 0x04: // TODO: ORG
         case 0x05: // TODO: XORG
-        case 0x06: // TODO: ANDC
+        case 0x06: return cpuOpcodeAndC;
         case 0x07: // TODO: LDC
         case 0x08: return cpuOpcodeAddB;
         case 0x09: return cpuOpcodeAddW;
@@ -441,7 +451,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
 
         case 0x76:
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
-                // TODO: BAND
+                return cpuOpcodeBand;
             } else {
                 // TODO: BIAND
             }
@@ -782,7 +792,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     }
                 } else if((s_opcodeBuffer[1] & 0xff00) == 0x7600) {
                     if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
-                        // TODO: BAND
+                        return cpuOpcodeBand;
                     } else {
                         // TODO: BIAND
                     }
@@ -845,7 +855,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 }
             } else if((s_opcodeBuffer[1] & 0xff00) == 0x7600) {
                 if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
-                    // TODO: BAND
+                   return cpuOpcodeBand;
                 } else {
                     // TODO: BIAND
                 }
@@ -1171,6 +1181,34 @@ static void cpuOpcodeAndL(void) {
     s_cpuFlagsRegister.bitField.overflow = false;
 
     cpuSetRegister32(l_erd, l_result);
+}
+
+static void cpuOpcodeAndC(void) {
+    s_cpuFlagsRegister.byte &= s_opcodeBuffer[0];
+}
+
+static void cpuOpcodeBand(void) {
+    int l_imm;
+    uint8_t l_operand;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x7600) { // BAND #xx:3.Rd
+        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    } else {
+        s_opcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+
+        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BAND #xx:3.@ERd
+            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+            uint32_t l_erdValue = cpuGetRegister32(l_erd);
+            l_operand = busRead8(l_erdValue);
+        } else { // BAND #xx:3.@aa:8
+            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            l_operand = busRead8(l_address);
+        }
+    }
+
+    s_cpuFlagsRegister.bitField.carry &= (l_operand & (1 << l_imm)) != 0;
 }
 
 static void cpuOpcodeNop(void) {
