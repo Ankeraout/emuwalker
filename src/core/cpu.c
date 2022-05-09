@@ -109,6 +109,13 @@ static uint16_t s_opcodeBuffer[2];
 static inline uint16_t cpuFetch16(void);
 
 /**
+ * @brief Fetches a longword at PC and increments PC.
+ *
+ * @returns The longword at PC.
+ */
+static inline uint32_t cpuFetch32(void);
+
+/**
  * @brief Decodes an opcode.
  *
  * @returns The handler of the decoded opcode.
@@ -249,6 +256,16 @@ void coreStep(void) {
 static inline uint16_t cpuFetch16(void) {
     uint16_t l_returnValue = busRead16(s_cpuRegisterPC);
     s_cpuRegisterPC += 2;
+
+    return l_returnValue;
+}
+
+static inline uint32_t cpuFetch32(void) {
+    uint32_t l_returnValue =
+        (busRead16(s_cpuRegisterPC) << 16)
+        | busRead16(s_cpuRegisterPC + 2);
+
+    s_cpuRegisterPC += 4;
 
     return l_returnValue;
 }
@@ -971,14 +988,15 @@ static void cpuOpcodeAddW(void) {
     cpuSetRegister16(l_rd, l_result);
 }
 
-static void cpuOpcodeAddL(void) {uint16_t l_operand1;
+static void cpuOpcodeAddL(void) {
+    uint32_t l_operand1;
     uint32_t l_operand2;
     int l_rd;
 
     if((s_opcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
         l_operand1 = cpuGetRegister16((s_opcodeBuffer[0] & 0x00f0) >> 4);
-    } else { // ADD.W #xx:16, Rd
-        l_operand1 = s_opcodeBuffer[0] & 0x00ff;
+    } else { // ADD.L #xx:32, Rd
+        l_operand1 = cpuFetch32();
     }
 
     l_rd = s_opcodeBuffer[0] & 0x000f;
@@ -989,18 +1007,18 @@ static void cpuOpcodeAddL(void) {uint16_t l_operand1;
     s_cpuFlagsRegister.bitField.halfCarry = (
         (
             (
-                (l_operand1 & 0x0fff)
-                + (l_operand2 & 0x0fff)
-            ) & 0x1000
+                (l_operand1 & 0x0fffffff)
+                + (l_operand2 & 0x0fffffff)
+            ) & 0x10000000
         ) != 0
     );
-    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow = (
-        (((l_operand1 ^ l_operand2) & 0x8000) == 0)
-        && (((l_operand1 ^ l_result) & 0x8000) != 0)
+        (((l_operand1 ^ l_operand2) & 0x80000000) == 0)
+        && (((l_operand1 ^ l_result) & 0x80000000) != 0)
     );
-    s_cpuFlagsRegister.bitField.carry = (l_result & 0x00010000) != 0;
+    s_cpuFlagsRegister.bitField.carry = l_result < l_operand1;
 
     cpuSetRegister16(l_rd, l_result);
 }
