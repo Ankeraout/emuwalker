@@ -303,6 +303,11 @@ static void cpuOpcodeBild(void);
 static void cpuOpcodeBior(void);
 
 /**
+ * @brief Executes the BIST opcode.
+ */
+static void cpuOpcodeBist(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -492,7 +497,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
                 // TODO: BST
             } else {
-                // TODO: BIST
+                return cpuOpcodeBist;
             }
 
             break;
@@ -898,7 +903,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                         if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                             // TODO: BST
                         } else {
-                            // TODO: BIST
+                            return cpuOpcodeBist;
                         }
                     }
                 } else if((s_opcodeBuffer[1] & 0xf000) == 0x7000) {
@@ -959,7 +964,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                         // TODO: BST
                     } else {
-                        // TODO: BIST
+                        return cpuOpcodeBist;
                     }
                 }
             } else if((s_opcodeBuffer[1] & 0xf000) == 0x7000) {
@@ -1489,6 +1494,41 @@ static void cpuOpcodeBior(void) {
     }
 
     s_cpuFlagsRegister.bitField.carry |= (l_operand & (1 << l_imm)) == 0;
+}
+
+static void cpuOpcodeBist(void) {
+    int l_imm;
+    uint8_t l_operand;
+    uint32_t l_address;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
+        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    } else {
+        s_opcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+
+        if((s_opcodeBuffer[0] & 0xff00) == 0x7d00) { // BIST #xx:3.@ERd
+            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+            l_address = cpuGetRegister32(l_erd);
+            l_operand = busRead8(l_address);
+        } else { // BIST #xx:3.@aa:8
+            l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            l_operand = busRead8(l_address);
+        }
+    }
+
+    if(s_cpuFlagsRegister.bitField.carry) {
+        l_operand |= 1 << l_imm;
+    } else {
+        l_operand &= 1 << l_imm;
+    }
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
+        cpuSetRegister8(s_opcodeBuffer[0] & 0x000f, l_operand);
+    } else { // BIST #xx:3.@Erd or BIST #xx:3.@aa:8
+        busWrite8(l_address, l_operand);
+    }
 }
 
 static void cpuOpcodeNop(void) {
