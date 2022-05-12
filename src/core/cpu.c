@@ -313,6 +313,11 @@ static void cpuOpcodeBist(void);
 static void cpuOpcodeBixor(void);
 
 /**
+ * @brief Executes the BLD opcode.
+ */
+static void cpuOpcodeBld(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -548,7 +553,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
 
         case 0x77:
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
-                // TODO: BLD
+                return cpuOpcodeBld;
             } else {
                 return cpuOpcodeBild;
             }
@@ -1558,6 +1563,30 @@ static void cpuOpcodeBixor(void) {
     }
 
     s_cpuFlagsRegister.bitField.carry ^= (l_operand & (1 << l_imm)) == 0;
+}
+
+static void cpuOpcodeBld(void) {
+    int l_imm;
+    uint8_t l_operand;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x7700) { // BLD #xx:3.Rd
+        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    } else {
+        s_opcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+
+        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BLD #xx:3.@ERd
+            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+            uint32_t l_erdValue = cpuGetRegister32(l_erd);
+            l_operand = busRead8(l_erdValue);
+        } else { // BLD #xx:3.@aa:8
+            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            l_operand = busRead8(l_address);
+        }
+    }
+
+    s_cpuFlagsRegister.bitField.carry = (l_operand & (1 << l_imm)) != 0;
 }
 
 static void cpuOpcodeNop(void) {
