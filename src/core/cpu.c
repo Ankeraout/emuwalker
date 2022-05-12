@@ -288,6 +288,11 @@ static void cpuOpcodeBcc(void);
 static void cpuOpcodeBclr(void);
 
 /**
+ * @brief Executes the BIAND opcode.
+ */
+static void cpuOpcodeBiand(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -516,7 +521,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
                 return cpuOpcodeBand;
             } else {
-                // TODO: BIAND
+                return cpuOpcodeBiand;
             }
 
             break;
@@ -857,7 +862,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                         return cpuOpcodeBand;
                     } else {
-                        // TODO: BIAND
+                        return cpuOpcodeBiand;
                     }
                 } else if((s_opcodeBuffer[1] & 0xff00) == 0x7700) {
                     if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
@@ -920,7 +925,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                    return cpuOpcodeBand;
                 } else {
-                    // TODO: BIAND
+                    return cpuOpcodeBiand;
                 }
             } else if((s_opcodeBuffer[1] & 0xff00) == 0x7700) {
                 if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
@@ -1402,6 +1407,30 @@ static void cpuOpcodeBclr(void) {
             }
         }
     }
+}
+
+static void cpuOpcodeBiand(void) {
+    int l_imm;
+    uint8_t l_operand;
+
+    if((s_opcodeBuffer[0] & 0xff00) == 0x7600) { // BIAND #xx:3.Rd
+        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    } else {
+        s_opcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+
+        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BIAND #xx:3.@ERd
+            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+            uint32_t l_erdValue = cpuGetRegister32(l_erd);
+            l_operand = busRead8(l_erdValue);
+        } else { // BIAND #xx:3.@aa:8
+            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            l_operand = busRead8(l_address);
+        }
+    }
+
+    s_cpuFlagsRegister.bitField.carry &= (l_operand & (1 << l_imm)) == 0;
 }
 
 static void cpuOpcodeNop(void) {
