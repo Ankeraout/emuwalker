@@ -3,6 +3,7 @@
 // =============================================================================
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "core/bus.h"
 
@@ -282,6 +283,11 @@ static void cpuOpcodeBand(void);
 static void cpuOpcodeBcc(void);
 
 /**
+ * @brief Executes the BCLR opcode.
+ */
+static void cpuOpcodeBclr(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -309,6 +315,28 @@ void coreStep(void) {
     if(!s_cpuInitialized) {
         s_cpuRegisterPC = busRead16(0x0000U);
     }
+
+    // Trace
+    printf("===========================================================\n");
+    printf(
+        "ER0=0x%08x ER1=0x%08x ER2=0x%08x ER3=0x%08x\n",
+        cpuGetRegister32(E_CPUREGISTER_ER0),
+        cpuGetRegister32(E_CPUREGISTER_ER1),
+        cpuGetRegister32(E_CPUREGISTER_ER2),
+        cpuGetRegister32(E_CPUREGISTER_ER3)
+    );
+    printf(
+        "ER4=0x%08x ER5=0x%08x ER6=0x%08x ER7=0x%08x\n",
+        cpuGetRegister32(E_CPUREGISTER_ER4),
+        cpuGetRegister32(E_CPUREGISTER_ER5),
+        cpuGetRegister32(E_CPUREGISTER_ER6),
+        cpuGetRegister32(E_CPUREGISTER_ER7)
+    );
+    printf(
+        "PC=0x%08x FLAGS=0x%02x\n",
+        s_cpuRegisterPC,
+        s_cpuFlagsRegister.byte
+    );
 
     // Fetch
     s_opcodeBuffer[0] = cpuFetch16();
@@ -440,7 +468,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x5f: // TODO: JSR
         case 0x60: // TODO: BSET
         case 0x61: // TODO: BNOT
-        case 0x62: // TODO: BCLR
+        case 0x62: return cpuOpcodeBclr;
         case 0x63: // TODO: BTST
         case 0x64: // TODO: OR.W
         case 0x65: // TODO: XOR.W
@@ -464,7 +492,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x6f: // TODO: MOV
         case 0x70: // TODO: BSET
         case 0x71: // TODO: BNOT
-        case 0x72: // TODO: BCLR
+        case 0x72: return cpuOpcodeBclr;
         case 0x73: // TODO: BTST
         case 0x74:
             if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
@@ -850,7 +878,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
                         // TODO: BNOT
                     } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
-                        // TODO: BCLR
+                        return cpuOpcodeBclr;
                     } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0700) {
                         if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                             // TODO: BST
@@ -864,7 +892,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
                         // TODO: BNOT
                     } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
-                        // TODO: BCLR
+                        return cpuOpcodeBclr;
                     }
                 }
             }
@@ -911,7 +939,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
                     // TODO: BNOT
                 } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
-                    // TODO: BCLR
+                    return cpuOpcodeBclr;
                 } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0700) {
                     if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
                         // TODO: BST
@@ -925,7 +953,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
                     // TODO: BNOT
                 } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
-                    // TODO: BCLR
+                    return cpuOpcodeBclr;
                 }
             }
 
@@ -1319,6 +1347,60 @@ static void cpuOpcodeBcc(void) {
 
     if(cpuCheckConditionCode(l_conditionCode)) {
         s_cpuRegisterPC += l_disp;
+    }
+}
+
+static void cpuOpcodeBclr(void) {
+    if((s_opcodeBuffer[0] & 0xff00) == 0x6200) { // BCLR Rn, Rd
+        int l_rn = (s_opcodeBuffer[0] & 0x00f0) >> 4;
+        int l_rd = s_opcodeBuffer[0] & 0x000f;
+        int l_mask = ~(1 << cpuGetRegister8(l_rn));
+
+        cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) & l_mask);
+    } else if((s_opcodeBuffer[0] & 0xff00) == 0x7200) { // BCLR #xx:3, Rd
+        int l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        int l_rd = s_opcodeBuffer[0] & 0x000f;
+        int l_mask = ~(1 << l_imm);
+
+        cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) & l_mask);
+    } else {
+        s_opcodeBuffer[1] = cpuFetch16();
+
+        if((s_opcodeBuffer[1] & 0xff00) == 0x6200) {
+            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR Rn, @ERd
+                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+                int l_mask = ~(1 << cpuGetRegister8(l_rn));
+
+                busWrite8(
+                    cpuGetRegister32(l_erd),
+                    busRead8(cpuGetRegister32(l_erd)) & l_mask
+                );
+            } else { // BCLR Rn, @aa:8
+                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+                int l_mask = ~(1 << cpuGetRegister8(l_rn));
+
+                busWrite8(l_abs, busRead8(l_abs) & l_mask);
+            }
+        } else {
+            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR #xx:3, @ERd
+                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+                int l_mask = ~(1 << l_imm);
+
+                busWrite8(
+                    cpuGetRegister32(l_erd),
+                    busRead8(cpuGetRegister32(l_erd)) & l_mask
+                );
+            } else { // BCLR #xx:3, @aa:8
+                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+                int l_mask = ~(1 << l_imm);
+
+                busWrite8(l_abs, busRead8(l_abs) & l_mask);
+            }
+        }
     }
 }
 

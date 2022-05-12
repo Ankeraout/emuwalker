@@ -10,6 +10,7 @@
 
 #include "common.h"
 #include "core/core.h"
+#include "core/rom.h"
 
 // =============================================================================
 // Constants declaration
@@ -73,6 +74,7 @@ int coreLoadFile(
                 fprintf(stderr, "Error: invalid FLASH ROM file size.\n");
             } else {
                 s_flashRomBuffer = p_buffer;
+                romInit(s_flashRomBuffer);
             }
 
             break;
