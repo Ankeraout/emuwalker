@@ -423,6 +423,16 @@ static void cpuOpcodeEepmovB(void);
 static void cpuOpcodeEepmovW(void);
 
 /**
+ * @brief Executes the EXTS.W opcode.
+ */
+static void cpuOpcodeExtsW(void);
+
+/**
+ * @brief Executes the EXTS.L opcode.
+ */
+static void cpuOpcodeExtsL(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -885,8 +895,8 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x178:
         case 0x179:
         case 0x17b: // TODO: NEG
-        case 0x17d:
-        case 0x17f: // TODO: EXTS
+        case 0x17d: return cpuOpcodeExtsW;
+        case 0x17f: return cpuOpcodeExtsL;
         case 0x1a0: return cpuOpcodeDecB;
         case 0x1a8:
         case 0x1a9:
@@ -2236,6 +2246,30 @@ static void cpuOpcodeEepmovW(void) {
 
     s_cpuGeneralRegisters[E_CPUREGISTER_ER5].longWord = l_sourceAddress;
     s_cpuGeneralRegisters[E_CPUREGISTER_ER6].longWord = l_destinationAddress;
+}
+
+static void cpuOpcodeExtsW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    int16_t l_result = (int8_t)cpuGetRegister16(l_rd);
+
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.negative = l_result < 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister16(l_rd, l_result);
+}
+
+static void cpuOpcodeExtsL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+
+    int32_t l_result = (int16_t)cpuGetRegister32(l_erd);
+
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.negative = l_result < 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister32(l_erd, l_result);
 }
 
 static void cpuOpcodeNop(void) {
