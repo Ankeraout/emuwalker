@@ -403,6 +403,16 @@ static void cpuOpcodeDivxsB(void);
 static void cpuOpcodeDivxsW(void);
 
 /**
+ * @brief Executes the DIVXU.B opcode.
+ */
+static void cpuOpcodeDivxuB(void);
+
+/**
+ * @brief Executes the DIVXU.W opcode.
+ */
+static void cpuOpcodeDivxuW(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -566,9 +576,9 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x4e:
         case 0x4f: return cpuOpcodeBcc;
         case 0x50: // TODO: MULXU
-        case 0x51: // TODO: DIVXU
+        case 0x51: return cpuOpcodeDivxuB;
         case 0x52: // TODO: MULXU
-        case 0x53: // TODO: DIVXU
+        case 0x53: return cpuOpcodeDivxuW;
         case 0x54: // TODO: RTS
         case 0x55: return cpuOpcodeBsr;
         case 0x56: // TODO: RTE
@@ -2133,6 +2143,40 @@ static void cpuOpcodeDivxsW(void) {
     int16_t l_remainder = l_dividend % l_divisor;
 
     s_cpuFlagsRegister.bitField.negative = l_quotient < 0;
+    s_cpuFlagsRegister.bitField.zero = l_quotient == 0;
+
+    s_cpuGeneralRegisters[l_rd].word.r = l_quotient;
+    s_cpuGeneralRegisters[l_rd].word.e = l_remainder;
+}
+
+static void cpuOpcodeDivxuB(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    uint16_t l_dividend = cpuGetRegister16(l_rd);
+    uint8_t l_divisor = cpuGetRegister8(l_rs);
+
+    uint8_t l_quotient = l_dividend / l_divisor;
+    uint8_t l_remainder = l_dividend % l_divisor;
+
+    s_cpuFlagsRegister.bitField.negative = (l_quotient & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_quotient == 0;
+
+    s_cpuGeneralRegisters[l_rd].byte.rl = l_quotient;
+    s_cpuGeneralRegisters[l_rd].byte.rh = l_remainder;
+}
+
+static void cpuOpcodeDivxuW(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    uint32_t l_dividend = cpuGetRegister32(l_rd);
+    uint16_t l_divisor = cpuGetRegister16(l_rs);
+
+    uint16_t l_quotient = l_dividend / l_divisor;
+    uint16_t l_remainder = l_dividend % l_divisor;
+
+    s_cpuFlagsRegister.bitField.negative = (l_quotient & 0x8000) != 0;
     s_cpuFlagsRegister.bitField.zero = l_quotient == 0;
 
     s_cpuGeneralRegisters[l_rd].word.r = l_quotient;
