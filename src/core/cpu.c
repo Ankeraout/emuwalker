@@ -378,6 +378,21 @@ static void cpuOpcodeDaa(void);
 static void cpuOpcodeDas(void);
 
 /**
+ * @brief Executes the DEC.B opcode.
+ */
+static void cpuOpcodeDecB(void);
+
+/**
+ * @brief Executes the DEC.W opcode.
+ */
+static void cpuOpcodeDecW(void);
+
+/**
+ * @brief Executes the DEC.L opcode.
+ */
+static void cpuOpcodeDecL(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -835,7 +850,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x17b: // TODO: NEG
         case 0x17d:
         case 0x17f: // TODO: EXTS
-        case 0x1a0: // TODO: DEC
+        case 0x1a0: return cpuOpcodeDecB;
         case 0x1a8:
         case 0x1a9:
         case 0x1aa:
@@ -845,12 +860,12 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x1ae:
         case 0x1af: // TODO: SUB
         case 0x1b0: // TODO: SUBS
-        case 0x1b5:
-        case 0x1b7: // TODO: DEC
+        case 0x1b5: return cpuOpcodeDecW;
+        case 0x1b7: return cpuOpcodeDecL;
         case 0x1b8:
         case 0x1b9: // TODO: SUB
-        case 0x1bd:
-        case 0x1bf: // TODO: DEC
+        case 0x1bd: return cpuOpcodeDecW;
+        case 0x1bf: return cpuOpcodeDecL;
         case 0x1f0: return cpuOpcodeDas;
         case 0x1f8:
         case 0x1f9:
@@ -2023,6 +2038,57 @@ static void cpuOpcodeDas(void) {
     s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
 
     cpuSetRegister8(l_rd, l_operand);
+}
+
+static void cpuOpcodeDecB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    uint8_t l_operand = cpuGetRegister8(l_rd);
+
+    l_operand--;
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = l_operand == 0x7f;
+
+    cpuSetRegister8(l_rd, l_operand);
+}
+
+static void cpuOpcodeDecW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    uint16_t l_operand = cpuGetRegister16(l_rd);
+    uint16_t l_operand2;
+
+    if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x1b50) { // DEC.W #1, Rd
+        l_operand2 = 1;
+    } else { // DEC.W #2, Rd
+        l_operand2 = 2;
+    }
+
+    uint16_t l_result = l_operand - l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow =
+        ((l_operand ^ l_result) & 0x8000) != 0;
+}
+
+static void cpuOpcodeDecL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+    uint32_t l_operand = cpuGetRegister16(l_erd);
+    uint32_t l_operand2;
+
+    if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x1b70) { // DEC.L #1, ERd
+        l_operand2 = 1;
+    } else { // DEC.W #2, Rd
+        l_operand2 = 2;
+    }
+
+    uint32_t l_result = l_operand - l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow =
+        ((l_operand ^ l_result) & 0x80000000) != 0;
 }
 
 static void cpuOpcodeNop(void) {
