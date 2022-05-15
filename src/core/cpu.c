@@ -393,6 +393,16 @@ static void cpuOpcodeDecW(void);
 static void cpuOpcodeDecL(void);
 
 /**
+ * @brief Executes the DIVXS.B opcode.
+ */
+static void cpuOpcodeDivxsB(void);
+
+/**
+ * @brief Executes the DIVXS.W opcode.
+ */
+static void cpuOpcodeDivxsW(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -927,7 +937,11 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 ((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00d0)
                 && ((s_cpuOpcodeBuffer[1] & 0xfd00) == 0x5100)
             ) {
-                // TODO: DIVXS
+                if((s_cpuOpcodeBuffer[1] & 0x0200) == 0x0000) {
+                    return cpuOpcodeDivxsB;
+                } else {
+                    return cpuOpcodeDivxsW;
+                }
             } else if((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00f0) {
                 if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6400) {
                     // TODO: OR
@@ -2089,6 +2103,40 @@ static void cpuOpcodeDecL(void) {
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow =
         ((l_operand ^ l_result) & 0x80000000) != 0;
+}
+
+static void cpuOpcodeDivxsB(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    int16_t l_dividend = (int16_t)cpuGetRegister16(l_rd);
+    int8_t l_divisor = (int8_t)cpuGetRegister8(l_rs);
+
+    int8_t l_quotient = l_dividend / l_divisor;
+    int8_t l_remainder = l_dividend % l_divisor;
+
+    s_cpuFlagsRegister.bitField.negative = l_quotient < 0;
+    s_cpuFlagsRegister.bitField.zero = l_quotient == 0;
+
+    s_cpuGeneralRegisters[l_rd].byte.rl = l_quotient;
+    s_cpuGeneralRegisters[l_rd].byte.rh = l_remainder;
+}
+
+static void cpuOpcodeDivxsW(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    int32_t l_dividend = (int16_t)cpuGetRegister32(l_rd);
+    int16_t l_divisor = (int8_t)cpuGetRegister16(l_rs);
+
+    int16_t l_quotient = l_dividend / l_divisor;
+    int16_t l_remainder = l_dividend % l_divisor;
+
+    s_cpuFlagsRegister.bitField.negative = l_quotient < 0;
+    s_cpuFlagsRegister.bitField.zero = l_quotient == 0;
+
+    s_cpuGeneralRegisters[l_rd].word.r = l_quotient;
+    s_cpuGeneralRegisters[l_rd].word.e = l_remainder;
 }
 
 static void cpuOpcodeNop(void) {
