@@ -468,6 +468,16 @@ static void cpuOpcodeJmp(void);
 static void cpuOpcodeJsr(void);
 
 /**
+ * @brief Executes the LDC.B opcode.
+ */
+static void cpuOpcodeLdcB(void);
+
+/**
+ * @brief Executes the LDC.W opcode.
+ */
+static void cpuOpcodeLdcW(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -553,11 +563,11 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x00: return cpuOpcodeNop;
         case 0x01: return cpuDecodeGroup2();
         case 0x02: // TODO: STC
-        case 0x03: // TODO: LDC
+        case 0x03: return cpuOpcodeLdcB;
         case 0x04: // TODO: ORG
         case 0x05: // TODO: XORG
         case 0x06: return cpuOpcodeAndC;
-        case 0x07: // TODO: LDC
+        case 0x07: return cpuOpcodeLdcB;
         case 0x08: return cpuOpcodeAddB;
         case 0x09: return cpuOpcodeAddW;
         case 0x0a: return cpuDecodeGroup2();
@@ -862,7 +872,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x010: // TODO: MOV
         case 0x014:
             if((s_cpuOpcodeBuffer[0] & 0x0008) == 0x0000) {
-                // TODO: LDC
+                return cpuOpcodeLdcW;
             } else {
                 // TODO: STC
             }
@@ -2412,6 +2422,49 @@ static void cpuOpcodeJsr(void) {
         uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
         s_cpuRegisterPC = busRead16(l_address);
     }
+}
+
+static void cpuOpcodeLdcB(void) {
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x0700) { // LDC.B #xx:8, CCR
+        s_cpuFlagsRegister.byte = s_cpuOpcodeBuffer[0];
+    } else { // LDC.B Rs, CCR
+        s_cpuFlagsRegister.byte =
+            cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
+    }
+}
+
+static void cpuOpcodeLdcW(void) {
+    uint32_t l_address;
+
+    s_cpuOpcodeBuffer[1] = cpuFetch16();
+
+    if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6900) { // LDC.W @ERs, CCR
+        l_address = cpuGetRegister32((s_cpuOpcodeBuffer[1] & 0x0070) >> 4);
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6f00) { // LDC.W
+                                                           // @(d:16, ERs), CCR
+        l_address = cpuGetRegister32((s_cpuOpcodeBuffer[1] & 0x0070) >> 4)
+            + cpuFetch16();
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7800) { // LDC.W
+                                                           // @(d:24, ERs), CCR
+        cpuFetch16(); // Discard useless bytes
+
+        uint32_t l_disp = cpuFetch16() << 16;
+        l_disp |= cpuFetch16();
+
+        l_address = cpuGetRegister32((s_cpuOpcodeBuffer[1] & 0x0070) >> 4)
+            + l_disp;
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6d00) { // LDC.W @ERs+, CCR
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_ers);
+        cpuSetRegister32(l_ers, l_address + 1);
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6b00) { // LDC.W @aa:16, CCR
+        l_address = cpuFetch16();
+    } else { // LDC.W @aa:24, CCR
+        l_address = cpuFetch16() << 16;
+        l_address |= cpuFetch16();
+    }
+
+    s_cpuFlagsRegister.byte = busRead16(l_address);
 }
 
 static void cpuOpcodeNop(void) {
