@@ -338,6 +338,11 @@ static void cpuOpcodeBset(void);
 static void cpuOpcodeBsr(void);
 
 /**
+ * @brief Executes the BST opcode.
+ */
+static void cpuOpcodeBst(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -525,7 +530,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x66: return cpuOpcodeAndW;
         case 0x67:
             if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
-                // TODO: BST
+                return cpuOpcodeBst;
             } else {
                 return cpuOpcodeBist;
             }
@@ -931,7 +936,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                         return cpuOpcodeBclr;
                     } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0700) {
                         if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
-                            // TODO: BST
+                            return cpuOpcodeBst;
                         } else {
                             return cpuOpcodeBist;
                         }
@@ -992,7 +997,7 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                     return cpuOpcodeBclr;
                 } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0700) {
                     if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
-                        // TODO: BST
+                        return cpuOpcodeBst;
                     } else {
                         return cpuOpcodeBist;
                     }
@@ -1758,6 +1763,43 @@ static void cpuOpcodeBsr(void) {
     );
 
     s_cpuRegisterPC += l_disp;
+}
+
+static void cpuOpcodeBst(void) {
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6700) { // BST #xx:3.Rd
+        int l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint8_t l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
+        uint8_t l_mask = (s_cpuFlagsRegister.bitField.carry ? 1 : 0) << l_imm;
+
+        if(s_cpuFlagsRegister.bitField.carry) {
+            l_operand |= l_mask;
+        } else {
+            l_operand &= ~l_mask;
+        }
+
+        cpuSetRegister8(s_cpuOpcodeBuffer[0] & 0x000f, l_operand);
+    } else {
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+        uint8_t l_mask = 1 << l_imm;
+        uint32_t l_address;
+
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7d00) { // BST #xx:3, @ERd
+            l_address = cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
+        } else { // BST #xx:3, @aa:8
+            l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+        }
+
+        uint8_t l_operand = busRead8(l_address);
+
+        if(s_cpuFlagsRegister.bitField.carry) {
+            l_operand |= l_mask;
+        } else {
+            l_operand &= ~l_mask;
+        }
+
+        busWrite8(l_address, l_operand);
+    }
 }
 
 static void cpuOpcodeNop(void) {
