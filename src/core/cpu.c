@@ -373,6 +373,11 @@ static void cpuOpcodeCmpL(void);
 static void cpuOpcodeDaa(void);
 
 /**
+ * @brief Executes the DAS opcode.
+ */
+static void cpuOpcodeDas(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -846,7 +851,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x1b9: // TODO: SUB
         case 0x1bd:
         case 0x1bf: // TODO: DEC
-        case 0x1f0: // TODO: DAS
+        case 0x1f0: return cpuOpcodeDas;
         case 0x1f8:
         case 0x1f9:
         case 0x1fa:
@@ -1988,10 +1993,30 @@ static void cpuOpcodeDaa(void) {
     if(s_cpuFlagsRegister.bitField.carry || (l_operand > 0x99)) {
         l_operand += 0x60;
         s_cpuFlagsRegister.bitField.carry = true;
+    } else {
+        s_cpuFlagsRegister.bitField.carry = false;
     }
 
     if(s_cpuFlagsRegister.bitField.halfCarry || (l_operand > 0x09)) {
         l_operand += 0x06;
+    }
+
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
+
+    cpuSetRegister8(l_rd, l_operand);
+}
+
+static void cpuOpcodeDas(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    uint8_t l_operand = cpuGetRegister8(l_rd);
+
+    if(s_cpuFlagsRegister.bitField.halfCarry || ((l_operand & 0x0f) > 9)) {
+        l_operand -= 6;
+    }
+
+    if(s_cpuFlagsRegister.bitField.carry || (l_operand > 0x9f)) {
+        l_operand -= 0x60;
     }
 
     s_cpuFlagsRegister.bitField.zero = l_operand == 0;
