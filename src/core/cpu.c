@@ -413,6 +413,16 @@ static void cpuOpcodeDivxuB(void);
 static void cpuOpcodeDivxuW(void);
 
 /**
+ * @brief Executes the EEPMOV.B opcode.
+ */
+static void cpuOpcodeEepmovB(void);
+
+/**
+ * @brief Executes the EEPMOV.W opcode.
+ */
+static void cpuOpcodeEepmovW(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -658,7 +668,14 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x78: // TODO: MOV
         case 0x79:
         case 0x7a: return cpuDecodeGroup2();
-        case 0x7b: // TODO: EEPMOV
+        case 0x7b:
+            cpuFetch16(); // We don't care about the 3rd and 4th bytes.
+
+            if(s_cpuOpcodeBuffer[0] == 0x7b5c) {
+                return cpuOpcodeEepmovB;
+            } else {
+                return cpuOpcodeEepmovW;
+            }
         case 0x7c:
         case 0x7d:
         case 0x7e:
@@ -2181,6 +2198,44 @@ static void cpuOpcodeDivxuW(void) {
 
     s_cpuGeneralRegisters[l_rd].word.r = l_quotient;
     s_cpuGeneralRegisters[l_rd].word.e = l_remainder;
+}
+
+static void cpuOpcodeEepmovB(void) {
+    uint32_t l_sourceAddress =
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER5].longWord;
+    uint32_t l_destinationAddress =
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER6].longWord;
+
+    while(s_cpuGeneralRegisters[E_CPUREGISTER_R4].byte.rl != 0) {
+        busWrite8(l_destinationAddress, busRead8(l_sourceAddress));
+
+        l_destinationAddress++;
+        l_sourceAddress++;
+
+        s_cpuGeneralRegisters[E_CPUREGISTER_R4].byte.rl--;
+    }
+
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER5].longWord = l_sourceAddress;
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER6].longWord = l_destinationAddress;
+}
+
+static void cpuOpcodeEepmovW(void) {
+    uint32_t l_sourceAddress =
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER5].longWord;
+    uint32_t l_destinationAddress =
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER6].longWord;
+
+    while(s_cpuGeneralRegisters[E_CPUREGISTER_R4].word.r != 0) {
+        busWrite8(l_destinationAddress, busRead8(l_sourceAddress));
+
+        l_destinationAddress++;
+        l_sourceAddress++;
+
+        s_cpuGeneralRegisters[E_CPUREGISTER_R4].word.r--;
+    }
+
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER5].longWord = l_sourceAddress;
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER6].longWord = l_destinationAddress;
 }
 
 static void cpuOpcodeNop(void) {
