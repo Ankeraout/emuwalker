@@ -443,6 +443,21 @@ static void cpuOpcodeExtuW(void);
 static void cpuOpcodeExtuL(void);
 
 /**
+ * @brief Executes the INC.B opcode.
+ */
+static void cpuOpcodeIncB(void);
+
+/**
+ * @brief Executes the INC.W opcode.
+ */
+static void cpuOpcodeIncW(void);
+
+/**
+ * @brief Executes the INC.L opcode.
+ */
+static void cpuOpcodeIncL(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -848,7 +863,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x01c:
         case 0x01d:
         case 0x01f: return cpuDecodeGroup3();
-        case 0x0a0: // TODO: INC
+        case 0x0a0: return cpuOpcodeIncB;
         case 0x0a8:
         case 0x0a9:
         case 0x0aa:
@@ -858,12 +873,12 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x0ae:
         case 0x0af: return cpuOpcodeAddL;
         case 0x0b0: return cpuOpcodeAddS;
-        case 0x0b5: // TODO: INC
-        case 0x0b7: // TODO: INC
+        case 0x0b5: return cpuOpcodeIncW;
+        case 0x0b7: return cpuOpcodeIncL;
         case 0x0b8:
         case 0x0b9: return cpuOpcodeAddS;
-        case 0x0bd:
-        case 0x0bf: // TODO: INC
+        case 0x0bd: return cpuOpcodeIncW;
+        case 0x0bf: return cpuOpcodeIncL;
         case 0x0f0: return cpuOpcodeDaa;
         case 0x0f8:
         case 0x0f9:
@@ -2135,7 +2150,7 @@ static void cpuOpcodeDecW(void) {
 
 static void cpuOpcodeDecL(void) {
     enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
-    uint32_t l_operand = cpuGetRegister16(l_erd);
+    uint32_t l_operand = cpuGetRegister32(l_erd);
     uint32_t l_operand2;
 
     if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x1b70) { // DEC.L #1, ERd
@@ -2304,6 +2319,57 @@ static void cpuOpcodeExtuL(void) {
     s_cpuFlagsRegister.bitField.overflow = false;
 
     cpuSetRegister32(l_erd, l_result);
+}
+
+static void cpuOpcodeIncB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    uint8_t l_operand = cpuGetRegister8(l_rd);
+
+    l_operand--;
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = l_operand == 0x80;
+
+    cpuSetRegister8(l_rd, l_operand);
+}
+
+static void cpuOpcodeIncW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    uint16_t l_operand = cpuGetRegister16(l_rd);
+    uint16_t l_operand2;
+
+    if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x0b50) { // INC.W #1, Rd
+        l_operand2 = 1;
+    } else { // INC.W #2, Rd
+        l_operand2 = 2;
+    }
+
+    uint16_t l_result = l_operand + l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow =
+        ((l_operand ^ l_result) & 0x8000) != 0;
+}
+
+static void cpuOpcodeIncL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+    uint32_t l_operand = cpuGetRegister32(l_erd);
+    uint32_t l_operand2;
+
+    if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x0b70) { // INC.L #1, ERd
+        l_operand2 = 1;
+    } else { // DEC.W #2, Rd
+        l_operand2 = 2;
+    }
+
+    uint32_t l_result = l_operand + l_operand2;
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow =
+        ((l_operand ^ l_result) & 0x80000000) != 0;
 }
 
 static void cpuOpcodeNop(void) {
