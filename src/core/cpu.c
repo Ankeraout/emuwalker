@@ -458,6 +458,11 @@ static void cpuOpcodeIncW(void);
 static void cpuOpcodeIncL(void);
 
 /**
+ * @brief Executes the JMP opcode.
+ */
+static void cpuOpcodeJmp(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -631,7 +636,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x58: return cpuDecodeGroup2();
         case 0x59:
         case 0x5a:
-        case 0x5b: // TODO: JMP
+        case 0x5b: return cpuOpcodeJmp;
         case 0x5c: return cpuOpcodeBsr;
         case 0x5d:
         case 0x5e:
@@ -2370,6 +2375,19 @@ static void cpuOpcodeIncL(void) {
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow =
         ((l_operand ^ l_result) & 0x80000000) != 0;
+}
+
+static void cpuOpcodeJmp(void) {
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5900) { // JMP @ERn
+        s_cpuRegisterPC =
+            cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5a00) { // JMP @aa:24
+        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x0f00) << 16)
+            | s_cpuOpcodeBuffer[1];
+    } else { // JMP @@aa:8
+        uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+        s_cpuRegisterPC = busRead16(l_address);
+    }
 }
 
 static void cpuOpcodeNop(void) {
