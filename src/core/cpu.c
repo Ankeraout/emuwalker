@@ -116,7 +116,7 @@ static uint32_t s_cpuRegisterPC;
  *        from ROM.
  */
 static bool s_cpuInitialized;
-static uint16_t s_opcodeBuffer[2];
+static uint16_t s_cpuOpcodeBuffer[2];
 
 // =============================================================================
 // Private function declarations
@@ -333,6 +333,11 @@ static void cpuOpcodeBor(void);
 static void cpuOpcodeBset(void);
 
 /**
+ * @brief Executes the BSR opcode.
+ */
+static void cpuOpcodeBsr(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -384,7 +389,7 @@ void coreStep(void) {
     );
 
     // Fetch
-    s_opcodeBuffer[0] = cpuFetch16();
+    s_cpuOpcodeBuffer[0] = cpuFetch16();
 
     // Decode
     tf_opcodeHandler l_opcodeHandler = cpuDecode();
@@ -414,7 +419,7 @@ static inline uint32_t cpuFetch32(void) {
 }
 
 static inline tf_opcodeHandler cpuDecode(void) {
-    switch(s_opcodeBuffer[0] >> 8) {
+    switch(s_cpuOpcodeBuffer[0] >> 8) {
         case 0x00: return cpuOpcodeNop;
         case 0x01: return cpuDecodeGroup2();
         case 0x02: // TODO: STC
@@ -500,14 +505,14 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x52: // TODO: MULXU
         case 0x53: // TODO: DIVXU
         case 0x54: // TODO: RTS
-        case 0x55: // TODO: BSR
+        case 0x55: return cpuOpcodeBsr;
         case 0x56: // TODO: RTE
         case 0x57: // TODO: TRAPA
         case 0x58: return cpuDecodeGroup2();
         case 0x59:
         case 0x5a:
         case 0x5b: // TODO: JMP
-        case 0x5c: // TODO: BSR
+        case 0x5c: return cpuOpcodeBsr;
         case 0x5d:
         case 0x5e:
         case 0x5f: // TODO: JSR
@@ -519,7 +524,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x65: // TODO: XOR.W
         case 0x66: return cpuOpcodeAndW;
         case 0x67:
-            if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
                 // TODO: BST
             } else {
                 return cpuOpcodeBist;
@@ -540,7 +545,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x72: return cpuOpcodeBclr;
         case 0x73: // TODO: BTST
         case 0x74:
-            if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
                 return cpuOpcodeBor;
             } else {
                 return cpuOpcodeBior;
@@ -549,7 +554,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
             break;
 
         case 0x75:
-            if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
                 // TODO: BXOR
             } else {
                 return cpuOpcodeBixor;
@@ -558,7 +563,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
             break;
 
         case 0x76:
-            if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
                 return cpuOpcodeBand;
             } else {
                 return cpuOpcodeBiand;
@@ -567,7 +572,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
             break;
 
         case 0x77:
-            if((s_opcodeBuffer[0] & 0x0080) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) {
                 return cpuOpcodeBld;
             } else {
                 return cpuOpcodeBild;
@@ -716,10 +721,10 @@ static inline tf_opcodeHandler cpuDecode(void) {
 }
 
 static inline tf_opcodeHandler cpuDecodeGroup2(void) {
-    switch(s_opcodeBuffer[0] >> 4) {
+    switch(s_cpuOpcodeBuffer[0] >> 4) {
         case 0x010: // TODO: MOV
         case 0x014:
-            if((s_opcodeBuffer[0] & 0x0008) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x0008) == 0x0000) {
                 // TODO: LDC
             } else {
                 // TODO: STC
@@ -854,26 +859,26 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
 }
 
 static inline tf_opcodeHandler cpuDecodeGroup3(void) {
-    s_opcodeBuffer[1] = cpuFetch16();
+    s_cpuOpcodeBuffer[1] = cpuFetch16();
 
-    switch(s_opcodeBuffer[0] >> 8) {
+    switch(s_cpuOpcodeBuffer[0] >> 8) {
         case 0x01:
             if(
-                ((s_opcodeBuffer[0] & 0x00ff) == 0x00c0)
-                && ((s_opcodeBuffer[1] & 0xfd00) == 0x5000)
+                ((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00c0)
+                && ((s_cpuOpcodeBuffer[1] & 0xfd00) == 0x5000)
             ) {
                 // TODO: MULXS
             } else if(
-                ((s_opcodeBuffer[0] & 0x00ff) == 0x00d0)
-                && ((s_opcodeBuffer[1] & 0xfd00) == 0x5100)
+                ((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00d0)
+                && ((s_cpuOpcodeBuffer[1] & 0xfd00) == 0x5100)
             ) {
                 // TODO: DIVXS
-            } else if((s_opcodeBuffer[0] & 0x00ff) == 0x00f0) {
-                if((s_opcodeBuffer[1] & 0xff00) == 0x6400) {
+            } else if((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00f0) {
+                if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6400) {
                     // TODO: OR
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x6500) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6500) {
                     // TODO: XOR
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x6600) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6600) {
                     // TODO: AND
                 }
             }
@@ -881,31 +886,31 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
             break;
 
         case 0x7c:
-            if((s_opcodeBuffer[0] & 0x000f) == 0x0000) {
-                if((s_opcodeBuffer[1] & 0xff00) == 0x6300) {
+            if((s_cpuOpcodeBuffer[0] & 0x000f) == 0x0000) {
+                if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6300) {
                     // TODO: BTST
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x7300) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7300) {
                     // TODO: BTST
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x7400) {
-                    if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7400) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                         return cpuOpcodeBor;
                     } else {
                         return cpuOpcodeBior;
                     }
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x7500) {
-                    if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7500) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                         // TODO: BXOR
                     } else {
                         return cpuOpcodeBixor;
                     }
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x7600) {
-                    if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7600) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                         return cpuOpcodeBand;
                     } else {
                         return cpuOpcodeBiand;
                     }
-                } else if((s_opcodeBuffer[1] & 0xff00) == 0x7700) {
-                    if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7700) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                         // TODO: BID
                     } else {
                         return cpuOpcodeBild;
@@ -916,27 +921,27 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
             break;
 
         case 0x7d:
-            if((s_opcodeBuffer[0] & 0x000f) == 0x0000) {
-                if((s_opcodeBuffer[1] & 0xf000) == 0x6000) {
-                    if((s_opcodeBuffer[1] & 0x0f00) == 0x0000) {
+            if((s_cpuOpcodeBuffer[0] & 0x000f) == 0x0000) {
+                if((s_cpuOpcodeBuffer[1] & 0xf000) == 0x6000) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0000) {
                         return cpuOpcodeBset;
-                    } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
+                    } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0100) {
                         return cpuOpcodeBnot;
-                    } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
+                    } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0200) {
                         return cpuOpcodeBclr;
-                    } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0700) {
-                        if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                    } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0700) {
+                        if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                             // TODO: BST
                         } else {
                             return cpuOpcodeBist;
                         }
                     }
-                } else if((s_opcodeBuffer[1] & 0xf000) == 0x7000) {
-                    if((s_opcodeBuffer[1] & 0x0f00) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0xf000) == 0x7000) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0000) {
                         return cpuOpcodeBset;
-                    } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
+                    } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0100) {
                         return cpuOpcodeBnot;
-                    } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
+                    } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0200) {
                         return cpuOpcodeBclr;
                     }
                 }
@@ -945,30 +950,30 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
             break;
 
         case 0x7e:
-            if((s_opcodeBuffer[1] & 0xff00) == 0x6300) {
+            if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6300) {
                 // TODO: BTST
-            } else if((s_opcodeBuffer[1] & 0xff00) == 0x7300) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7300) {
                 // TODO: BTST
-            } else if((s_opcodeBuffer[1] & 0xff00) == 0x7400) {
-                if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7400) {
+                if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                     return cpuOpcodeBor;
                 } else {
                     return cpuOpcodeBior;
                 }
-            } else if((s_opcodeBuffer[1] & 0xff00) == 0x7500) {
-                if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7500) {
+                if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                     // TODO: BXOR
                 } else {
                     return cpuOpcodeBixor;
                 }
-            } else if((s_opcodeBuffer[1] & 0xff00) == 0x7600) {
-                if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7600) {
+                if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                    return cpuOpcodeBand;
                 } else {
                     return cpuOpcodeBiand;
                 }
-            } else if((s_opcodeBuffer[1] & 0xff00) == 0x7700) {
-                if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7700) {
+                if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                     // TODO: BID
                 } else {
                     return cpuOpcodeBild;
@@ -978,26 +983,26 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
             break;
 
         case 0x7f:
-            if((s_opcodeBuffer[1] & 0xf000) == 0x6000) {
-                if((s_opcodeBuffer[1] & 0x0f00) == 0x0000) {
+            if((s_cpuOpcodeBuffer[1] & 0xf000) == 0x6000) {
+                if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0000) {
                     return cpuOpcodeBset;
-                } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
+                } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0100) {
                     return cpuOpcodeBnot;
-                } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
+                } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0200) {
                     return cpuOpcodeBclr;
-                } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0700) {
-                    if((s_opcodeBuffer[1] & 0x0080) == 0x0000) {
+                } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0700) {
+                    if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) {
                         // TODO: BST
                     } else {
                         return cpuOpcodeBist;
                     }
                 }
-            } else if((s_opcodeBuffer[1] & 0xf000) == 0x7000) {
-                if((s_opcodeBuffer[1] & 0x0f00) == 0x0000) {
+            } else if((s_cpuOpcodeBuffer[1] & 0xf000) == 0x7000) {
+                if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0000) {
                     return cpuOpcodeBset;
-                } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0100) {
+                } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0100) {
                     return cpuOpcodeBnot;
-                } else if((s_opcodeBuffer[1] & 0x0f00) == 0x0200) {
+                } else if((s_cpuOpcodeBuffer[1] & 0x0f00) == 0x0200) {
                     return cpuOpcodeBclr;
                 }
             }
@@ -1124,12 +1129,12 @@ static void cpuOpcodeAddB(void) {
     uint8_t l_operand2;
     int l_rd;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x0800) { // ADD.B Rs, Rd
-        l_rd = s_opcodeBuffer[0] & 0x000f;
-        l_operand1 = cpuGetRegister8((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x0800) { // ADD.B Rs, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand1 = cpuGetRegister8((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     } else { // ADD.B #xx:8, Rd
-        l_rd = (s_opcodeBuffer[0] & 0x0f00) >> 8;
-        l_operand1 = s_opcodeBuffer[0] & 0x00ff;
+        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 8;
+        l_operand1 = s_cpuOpcodeBuffer[0] & 0x00ff;
     }
 
     l_operand2 = cpuGetRegister8(l_rd);
@@ -1160,13 +1165,13 @@ static void cpuOpcodeAddW(void) {
     uint16_t l_operand2;
     int l_rd;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
-        l_operand1 = cpuGetRegister16((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
+        l_operand1 = cpuGetRegister16((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     } else { // ADD.W #xx:16, Rd
         l_operand2 = cpuFetch16();
     }
 
-    l_rd = s_opcodeBuffer[0] & 0x000f;
+    l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
     l_operand2 = cpuGetRegister16(l_rd);
 
     uint32_t l_result = l_operand1 + l_operand2;
@@ -1195,13 +1200,13 @@ static void cpuOpcodeAddL(void) {
     uint32_t l_operand2;
     int l_erd;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
-        l_operand1 = cpuGetRegister32((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x0900) { // ADD.W Rs, Rd
+        l_operand1 = cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     } else { // ADD.L #xx:32, Rd
         l_operand1 = cpuFetch32();
     }
 
-    l_erd = s_opcodeBuffer[0] & 0x000f;
+    l_erd = s_cpuOpcodeBuffer[0] & 0x000f;
     l_operand2 = cpuGetRegister32(l_erd);
 
     uint32_t l_result = l_operand1 + l_operand2;
@@ -1226,17 +1231,17 @@ static void cpuOpcodeAddL(void) {
 }
 
 static void cpuOpcodeAddS(void) {
-    int l_erd = s_opcodeBuffer[0] & 0x0007;
+    int l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
     int32_t l_erdValue =
         (int32_t)((int16_t)s_cpuGeneralRegisters[l_erd].word.r);
 
     int32_t l_operand2;
 
-    if((s_opcodeBuffer[0] & 0x00f0) == 0x0000) { // ADDS #1, ERd
+    if((s_cpuOpcodeBuffer[0] & 0x00f0) == 0x0000) { // ADDS #1, ERd
         l_operand2 = 1;
-    } else if((s_opcodeBuffer[0] & 0x00f0) == 0x0080) { // ADDS #2, ERd
+    } else if((s_cpuOpcodeBuffer[0] & 0x00f0) == 0x0080) { // ADDS #2, ERd
         l_operand2 = 2;
-    } else if((s_opcodeBuffer[0] & 0x00f0) == 0x0090) { // ADDS #4, ERd
+    } else if((s_cpuOpcodeBuffer[0] & 0x00f0) == 0x0090) { // ADDS #4, ERd
         l_operand2 = 4;
     }
 
@@ -1247,11 +1252,11 @@ static void cpuOpcodeAddX(void) {
     int l_rd;
     uint8_t l_operand1;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x0e00) { // ADDX #xx:8, Rd
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x0e00) { // ADDX #xx:8, Rd
 
     } else { // ADDX Rs, Rd
-        l_rd = s_opcodeBuffer[0] & 0x000f;
-        l_operand1 = cpuGetRegister8((s_opcodeBuffer[0] & 0x00f0) >> 4);
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand1 = cpuGetRegister8((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     }
 
     uint8_t l_operand2 = cpuGetRegister8(l_rd);
@@ -1282,12 +1287,12 @@ static void cpuOpcodeAndB(void) {
     uint8_t l_operand2;
     int l_rd;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x1600) { // AND.B Rs, Rd
-        l_rd = s_opcodeBuffer[0] & 0x000f;
-        l_operand1 = cpuGetRegister8((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x1600) { // AND.B Rs, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand1 = cpuGetRegister8((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     } else { // AND.B #xx:8, Rd
-        l_rd = (s_opcodeBuffer[0] & 0x0f00) >> 8;
-        l_operand1 = s_opcodeBuffer[0] & 0x00ff;
+        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 8;
+        l_operand1 = s_cpuOpcodeBuffer[0] & 0x00ff;
     }
 
     l_operand2 = cpuGetRegister8(l_rd);
@@ -1306,13 +1311,13 @@ static void cpuOpcodeAndW(void) {
     uint16_t l_operand2;
     int l_rd;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6600) { // AND.W Rs, Rd
-        l_operand1 = cpuGetRegister16((s_opcodeBuffer[0] & 0x00f0) >> 4);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6600) { // AND.W Rs, Rd
+        l_operand1 = cpuGetRegister16((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
     } else { // ADD.W #xx:16, Rd
         l_operand2 = cpuFetch16();
     }
 
-    l_rd = s_opcodeBuffer[0] & 0x000f;
+    l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
     l_operand2 = cpuGetRegister16(l_rd);
 
     uint32_t l_result = l_operand1 & l_operand2;
@@ -1329,14 +1334,14 @@ static void cpuOpcodeAndL(void) {
     uint32_t l_operand2;
     int l_erd;
 
-    if((s_opcodeBuffer[0] & 0xfff8) == 0x7a60) { // AND.L ERs, ERd
-        s_opcodeBuffer[1] = cpuFetch16();
+    if((s_cpuOpcodeBuffer[0] & 0xfff8) == 0x7a60) { // AND.L ERs, ERd
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
 
-        l_operand1 = cpuGetRegister32((s_opcodeBuffer[1] & 0x0070) >> 4);
-        l_erd = s_opcodeBuffer[1] & 0x0007;
+        l_operand1 = cpuGetRegister32((s_cpuOpcodeBuffer[1] & 0x0070) >> 4);
+        l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
     } else { // AND.L #xx:32, ERd
         l_operand1 = cpuFetch32();
-        l_erd = s_opcodeBuffer[0] & 0x0007;
+        l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
     }
 
     l_operand2 = cpuGetRegister32(l_erd);
@@ -1351,26 +1356,26 @@ static void cpuOpcodeAndL(void) {
 }
 
 static void cpuOpcodeAndC(void) {
-    s_cpuFlagsRegister.byte &= s_opcodeBuffer[0];
+    s_cpuFlagsRegister.byte &= s_cpuOpcodeBuffer[0];
 }
 
 static void cpuOpcodeBand(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7600) { // BAND #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7600) { // BAND #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BAND #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BAND #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BAND #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1382,12 +1387,12 @@ static void cpuOpcodeBcc(void) {
     enum te_cpuConditionCode l_conditionCode;
     int16_t l_disp;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x5800) {
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5800) {
         l_disp = cpuFetch16();
-        l_conditionCode = (s_opcodeBuffer[0] & 0x00f0) >> 4;
+        l_conditionCode = (s_cpuOpcodeBuffer[0] & 0x00f0) >> 4;
     } else {
-        l_disp = (int16_t)((int8_t)s_opcodeBuffer[0]);
-        l_conditionCode = (s_opcodeBuffer[0] & 0x0f00) >> 8;
+        l_disp = (int16_t)((int8_t)s_cpuOpcodeBuffer[0]);
+        l_conditionCode = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 8;
     }
 
     if(cpuCheckConditionCode(l_conditionCode)) {
@@ -1396,25 +1401,25 @@ static void cpuOpcodeBcc(void) {
 }
 
 static void cpuOpcodeBclr(void) {
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6200) { // BCLR Rn, Rd
-        int l_rn = (s_opcodeBuffer[0] & 0x00f0) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6200) { // BCLR Rn, Rd
+        int l_rn = (s_cpuOpcodeBuffer[0] & 0x00f0) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = ~(1 << cpuGetRegister8(l_rn));
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) & l_mask);
-    } else if((s_opcodeBuffer[0] & 0xff00) == 0x7200) { // BCLR #xx:3, Rd
-        int l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7200) { // BCLR #xx:3, Rd
+        int l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = ~(1 << l_imm);
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) & l_mask);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
 
-        if((s_opcodeBuffer[1] & 0xff00) == 0x6200) {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR Rn, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+        if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6200) {
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR Rn, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = ~(1 << cpuGetRegister8(l_rn));
 
                 busWrite8(
@@ -1422,16 +1427,16 @@ static void cpuOpcodeBclr(void) {
                     busRead8(cpuGetRegister32(l_erd)) & l_mask
                 );
             } else { // BCLR Rn, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = ~(1 << cpuGetRegister8(l_rn));
 
                 busWrite8(l_abs, busRead8(l_abs) & l_mask);
             }
         } else {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR #xx:3, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BCLR #xx:3, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = ~(1 << l_imm);
 
                 busWrite8(
@@ -1439,8 +1444,8 @@ static void cpuOpcodeBclr(void) {
                     busRead8(cpuGetRegister32(l_erd)) & l_mask
                 );
             } else { // BCLR #xx:3, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = ~(1 << l_imm);
 
                 busWrite8(l_abs, busRead8(l_abs) & l_mask);
@@ -1453,19 +1458,19 @@ static void cpuOpcodeBiand(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7600) { // BIAND #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7600) { // BIAND #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BIAND #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BIAND #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BIAND #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1477,19 +1482,19 @@ static void cpuOpcodeBild(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7700) { // BILD #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7700) { // BILD #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BILD #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BILD #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BILD #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1501,19 +1506,19 @@ static void cpuOpcodeBior(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7400) { // BIOR #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7400) { // BIOR #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BIOR #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BIOR #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BIOR #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1526,19 +1531,19 @@ static void cpuOpcodeBist(void) {
     uint8_t l_operand;
     uint32_t l_address;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7d00) { // BIST #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7d00) { // BIST #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             l_address = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_address);
         } else { // BIST #xx:3, @aa:8
-            l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1549,8 +1554,8 @@ static void cpuOpcodeBist(void) {
         l_operand &= 1 << l_imm;
     }
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
-        cpuSetRegister8(s_opcodeBuffer[0] & 0x000f, l_operand);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6700) { // BIST #xx:3.Rd
+        cpuSetRegister8(s_cpuOpcodeBuffer[0] & 0x000f, l_operand);
     } else { // BIST #xx:3, @Erd or BIST #xx:3, @aa:8
         busWrite8(l_address, l_operand);
     }
@@ -1560,19 +1565,19 @@ static void cpuOpcodeBixor(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7500) { // BIXOR #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7500) { // BIXOR #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BIXOR #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BIXOR #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BIXOR #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1584,19 +1589,19 @@ static void cpuOpcodeBld(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7700) { // BLD #xx:3.Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7700) { // BLD #xx:3.Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BLD #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BLD #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BLD #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1605,25 +1610,25 @@ static void cpuOpcodeBld(void) {
 }
 
 static void cpuOpcodeBnot(void) {
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6100) { // BNOT Rn, Rd
-        int l_rn = (s_opcodeBuffer[0] & 0x00f0) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6100) { // BNOT Rn, Rd
+        int l_rn = (s_cpuOpcodeBuffer[0] & 0x00f0) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = 1 << cpuGetRegister8(l_rn);
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) ^ l_mask);
-    } else if((s_opcodeBuffer[0] & 0xff00) == 0x7100) { // BNOT #xx:3, Rd
-        int l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7100) { // BNOT #xx:3, Rd
+        int l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = 1 << l_imm;
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) ^ l_mask);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
 
-        if((s_opcodeBuffer[1] & 0xff00) == 0x6100) {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BNOT Rn, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+        if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6100) {
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BNOT Rn, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = 1 << cpuGetRegister8(l_rn);
 
                 busWrite8(
@@ -1631,16 +1636,16 @@ static void cpuOpcodeBnot(void) {
                     busRead8(cpuGetRegister32(l_erd)) ^ l_mask
                 );
             } else { // BNOT Rn, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = 1 << cpuGetRegister8(l_rn);
 
                 busWrite8(l_abs, busRead8(l_abs) ^ l_mask);
             }
         } else {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BNOT #xx:3, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BNOT #xx:3, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = 1 << l_imm;
 
                 busWrite8(
@@ -1648,8 +1653,8 @@ static void cpuOpcodeBnot(void) {
                     busRead8(cpuGetRegister32(l_erd)) ^ l_mask
                 );
             } else { // BNOT #xx:3, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = 1 << l_imm;
 
                 busWrite8(l_abs, busRead8(l_abs) ^ l_mask);
@@ -1662,19 +1667,19 @@ static void cpuOpcodeBor(void) {
     int l_imm;
     uint8_t l_operand;
 
-    if((s_opcodeBuffer[0] & 0xff00) == 0x7400) { // BOR #xx:3, Rd
-        l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        l_operand = cpuGetRegister8(s_opcodeBuffer[0] & 0x000f);
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7400) { // BOR #xx:3, Rd
+        l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_operand = cpuGetRegister8(s_cpuOpcodeBuffer[0] & 0x000f);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
-        l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
+        l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
 
-        if((s_opcodeBuffer[0] & 0xff00) == 0x7c00) { // BOR #xx:3, @ERd
-            int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
+        if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7c00) { // BOR #xx:3, @ERd
+            int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
             uint32_t l_erdValue = cpuGetRegister32(l_erd);
             l_operand = busRead8(l_erdValue);
         } else { // BOR #xx:3, @aa:8
-            uint32_t l_address = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
+            uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
             l_operand = busRead8(l_address);
         }
     }
@@ -1683,25 +1688,25 @@ static void cpuOpcodeBor(void) {
 }
 
 static void cpuOpcodeBset(void) {
-    if((s_opcodeBuffer[0] & 0xff00) == 0x6000) { // BSET Rn, Rd
-        int l_rn = (s_opcodeBuffer[0] & 0x00f0) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6000) { // BSET Rn, Rd
+        int l_rn = (s_cpuOpcodeBuffer[0] & 0x00f0) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = 1 << cpuGetRegister8(l_rn);
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) | l_mask);
-    } else if((s_opcodeBuffer[0] & 0xff00) == 0x7000) { // BSET #xx:3, Rd
-        int l_imm = (s_opcodeBuffer[0] & 0x0070) >> 4;
-        int l_rd = s_opcodeBuffer[0] & 0x000f;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7000) { // BSET #xx:3, Rd
+        int l_imm = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        int l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
         int l_mask = 1 << l_imm;
 
         cpuSetRegister8(l_rd, cpuGetRegister8(l_rd) | l_mask);
     } else {
-        s_opcodeBuffer[1] = cpuFetch16();
+        s_cpuOpcodeBuffer[1] = cpuFetch16();
 
-        if((s_opcodeBuffer[1] & 0xff00) == 0x6000) {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BSET Rn, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+        if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6000) {
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BSET Rn, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = 1 << cpuGetRegister8(l_rn);
 
                 busWrite8(
@@ -1709,16 +1714,16 @@ static void cpuOpcodeBset(void) {
                     busRead8(cpuGetRegister32(l_erd)) | l_mask
                 );
             } else { // BSET Rn, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_rn = (s_opcodeBuffer[1] & 0x00f0) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_rn = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
                 int l_mask = 1 << cpuGetRegister8(l_rn);
 
                 busWrite8(l_abs, busRead8(l_abs) | l_mask);
             }
         } else {
-            if((s_opcodeBuffer[0] = 0xff00) == 0x7d00) { // BSET #xx:3, @ERd
-                int l_erd = (s_opcodeBuffer[0] & 0x0070) >> 4;
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+            if((s_cpuOpcodeBuffer[0] = 0xff00) == 0x7d00) { // BSET #xx:3, @ERd
+                int l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = 1 << l_imm;
 
                 busWrite8(
@@ -1726,14 +1731,33 @@ static void cpuOpcodeBset(void) {
                     busRead8(cpuGetRegister32(l_erd)) | l_mask
                 );
             } else { // BSET #xx:3, @aa:8
-                int l_abs = 0xffffff00 | (s_opcodeBuffer[0] & 0x00ff);
-                int l_imm = (s_opcodeBuffer[1] & 0x0070) >> 4;
+                int l_abs = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+                int l_imm = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
                 int l_mask = 1 << l_imm;
 
                 busWrite8(l_abs, busRead8(l_abs) | l_mask);
             }
         }
     }
+}
+
+static void cpuOpcodeBsr(void) {
+    uint32_t l_disp;
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5500) { // BSR d:8
+        l_disp = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+    } else { // BSR d:16
+        l_disp = 0xffff0000 | cpuFetch16();
+    }
+
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER7].longWord -= 2;
+
+    busWrite16(
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER7].longWord,
+        s_cpuRegisterPC
+    );
+
+    s_cpuRegisterPC += l_disp;
 }
 
 static void cpuOpcodeNop(void) {
