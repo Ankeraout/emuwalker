@@ -463,6 +463,11 @@ static void cpuOpcodeIncL(void);
 static void cpuOpcodeJmp(void);
 
 /**
+ * @brief Executes the JSR opcode.
+ */
+static void cpuOpcodeJsr(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -640,7 +645,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x5c: return cpuOpcodeBsr;
         case 0x5d:
         case 0x5e:
-        case 0x5f: // TODO: JSR
+        case 0x5f: return cpuOpcodeJsr;
         case 0x60: return cpuOpcodeBset;
         case 0x61: return cpuOpcodeBnot;
         case 0x62: return cpuOpcodeBclr;
@@ -2385,6 +2390,25 @@ static void cpuOpcodeJmp(void) {
         s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x0f00) << 16)
             | s_cpuOpcodeBuffer[1];
     } else { // JMP @@aa:8
+        uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+        s_cpuRegisterPC = busRead16(l_address);
+    }
+}
+
+static void cpuOpcodeJsr(void) {
+    s_cpuGeneralRegisters[E_CPUREGISTER_ER7].longWord -= 2;
+    busWrite16(
+        s_cpuGeneralRegisters[E_CPUREGISTER_ER7].longWord,
+        s_cpuRegisterPC
+    );
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5d00) { // JSR @ERn
+        s_cpuRegisterPC =
+            cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5e00) { // JSR @aa:24
+        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x0f00) << 16)
+            | s_cpuOpcodeBuffer[1];
+    } else { // JSR @@aa:8
         uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
         s_cpuRegisterPC = busRead16(l_address);
     }
