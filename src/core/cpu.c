@@ -433,6 +433,16 @@ static void cpuOpcodeExtsW(void);
 static void cpuOpcodeExtsL(void);
 
 /**
+ * @brief Executes the EXTU.W opcode.
+ */
+static void cpuOpcodeExtuW(void);
+
+/**
+ * @brief Executes the EXTU.L opcode.
+ */
+static void cpuOpcodeExtuL(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -890,8 +900,8 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x170:
         case 0x171:
         case 0x173: // TODO: NOT
-        case 0x175:
-        case 0x177: // TODO: EXTU
+        case 0x175: return cpuOpcodeExtuW;
+        case 0x177: return cpuOpcodeExtuL;
         case 0x178:
         case 0x179:
         case 0x17b: // TODO: NEG
@@ -2267,6 +2277,30 @@ static void cpuOpcodeExtsL(void) {
 
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.negative = l_result < 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister32(l_erd, l_result);
+}
+
+static void cpuOpcodeExtuW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint16_t l_result = (uint8_t)cpuGetRegister16(l_rd);
+
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.negative = false;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    cpuSetRegister16(l_rd, l_result);
+}
+
+static void cpuOpcodeExtuL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+
+    uint32_t l_result = (uint16_t)cpuGetRegister32(l_erd);
+
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.negative = false;
     s_cpuFlagsRegister.bitField.overflow = false;
 
     cpuSetRegister32(l_erd, l_result);
