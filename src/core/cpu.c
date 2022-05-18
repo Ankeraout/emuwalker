@@ -478,6 +478,51 @@ static void cpuOpcodeLdcB(void);
 static void cpuOpcodeLdcW(void);
 
 /**
+ * @brief Executes the MOV.B Rs, Rd opcode.
+ */
+static void cpuOpcodeMovB1(void);
+
+/**
+ * @brief Executes the MOV.W Rs, Rd opcode.
+ */
+static void cpuOpcodeMovW1(void);
+
+/**
+ * @brief Executes the MOV.L ERs, ERd opcode.
+ */
+static void cpuOpcodeMovL1(void);
+
+/**
+ * @brief Executes the MOV.B (EAs), Rd opcode.
+ */
+static void cpuOpcodeMovB2(void);
+
+/**
+ * @brief Executes the MOV.W (EAs), Rd opcode.
+ */
+static void cpuOpcodeMovW2(void);
+
+/**
+ * @brief Executes the MOV.L (EAs), ERd opcode.
+ */
+static void cpuOpcodeMovL2(void);
+
+/**
+ * @brief Executes the MOV.B Rs, (EAd) opcode.
+ */
+static void cpuOpcodeMovB3(void);
+
+/**
+ * @brief Executes the MOV.W Rs, (EAd) opcode.
+ */
+static void cpuOpcodeMovW3(void);
+
+/**
+ * @brief Executes the MOV.L ERs, (EAd) opcode.
+ */
+static void cpuOpcodeMovL3(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -572,8 +617,8 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x09: return cpuOpcodeAddW;
         case 0x0a: return cpuDecodeGroup2();
         case 0x0b: return cpuDecodeGroup2();
-        case 0x0c:
-        case 0x0d: // TODO: MOV
+        case 0x0c: return cpuOpcodeMovB1;
+        case 0x0d: return cpuOpcodeMovW1;
         case 0x0e: return cpuOpcodeAddX;
         case 0x0f: return cpuDecodeGroup2();
         case 0x10:
@@ -607,7 +652,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x2c:
         case 0x2d:
         case 0x2e:
-        case 0x2f:
+        case 0x2f: return cpuOpcodeMovB2;
         case 0x30:
         case 0x31:
         case 0x32:
@@ -623,7 +668,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x3c:
         case 0x3d:
         case 0x3e:
-        case 0x3f: // TODO: MOV.B
+        case 0x3f: return cpuOpcodeMovB3;
         case 0x40:
         case 0x41:
         case 0x42:
@@ -673,13 +718,26 @@ static inline tf_opcodeHandler cpuDecode(void) {
             break;
 
         case 0x68:
-        case 0x69:
         case 0x6a:
-        case 0x6b:
         case 0x6c:
-        case 0x6d:
         case 0x6e:
-        case 0x6f: // TODO: MOV
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) { // MOV.B (EAs), ERd
+                return cpuOpcodeMovB2;
+            } else { // MOV.B Rs, (EAd)
+                return cpuOpcodeMovB3;
+            }
+
+        case 0x69:
+        case 0x6b:
+        case 0x6d:
+        case 0x6f:
+            if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) { // MOV.W (EAs), ERd
+                return cpuOpcodeMovW2;
+            } else { // MOV.W Rs, (EAd)
+                return cpuOpcodeMovW3;
+            }
+
+        return cpuOpcodeMovW2;
         case 0x70: return cpuOpcodeBset;
         case 0x71: return cpuOpcodeBnot;
         case 0x72: return cpuOpcodeBclr;
@@ -720,7 +778,20 @@ static inline tf_opcodeHandler cpuDecode(void) {
 
             break;
 
-        case 0x78: // TODO: MOV
+        case 0x78:
+            s_cpuOpcodeBuffer[1] = cpuFetch16();
+
+            if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6a20) { // MOV.B (EAs), Rd
+                return cpuOpcodeMovB2;
+            } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6aa0) { // MOV.B Rd,
+                                                                 // (EAs)
+                return cpuOpcodeMovB3;
+            } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b20) { // MOV.W
+                                                                   // (EAs), Rd
+                return cpuOpcodeMovW2;
+            } else { // MOV.W Rd, (EAs)
+                return cpuOpcodeMovW3;
+            }
         case 0x79:
         case 0x7a: return cpuDecodeGroup2();
         case 0x7b:
@@ -862,14 +933,21 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0xfc:
         case 0xfd:
         case 0xfe:
-        case 0xff: // TODO: MOV
+        case 0xff: return cpuOpcodeMovB2;
             break;
     }
 }
 
 static inline tf_opcodeHandler cpuDecodeGroup2(void) {
     switch(s_cpuOpcodeBuffer[0] >> 4) {
-        case 0x010: // TODO: MOV
+        case 0x010:
+            s_cpuOpcodeBuffer[1] = cpuFetch16();
+
+            if((s_cpuOpcodeBuffer[1] & 0x0080) == 0x0000) { // MOV.L (EAs), ERd
+                return cpuOpcodeMovL2;
+            } else { // MOV.L ERd, (EAs)
+                return cpuOpcodeMovL3;
+            }
         case 0x014:
             if((s_cpuOpcodeBuffer[0] & 0x0008) == 0x0000) {
                 return cpuOpcodeLdcW;
@@ -907,7 +985,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x0fc:
         case 0x0fd:
         case 0x0fe:
-        case 0x0ff: // TODO: MOV
+        case 0x0ff: return cpuOpcodeMovL1;
         case 0x100:
         case 0x101:
         case 0x103: // TODO: SHLL
@@ -983,14 +1061,14 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x58d:
         case 0x58e:
         case 0x58f: return cpuOpcodeBcc;
-        case 0x790: // TODO: MOV
+        case 0x790: return cpuOpcodeMovW2;
         case 0x791: return cpuOpcodeAddW;
         case 0x792: return cpuOpcodeCmpW;
         case 0x793: // TODO: SUB
         case 0x794: // TODO: OR
         case 0x795: // TODO: XOR
         case 0x796: return cpuOpcodeAndW;
-        case 0x7a0: // TODO: MOV
+        case 0x7a0: return cpuOpcodeMovL2;
         case 0x7a1: return cpuOpcodeAddL;
         case 0x7a2: return cpuOpcodeCmpL;
         case 0x7a3: // TODO: SUB
@@ -2465,6 +2543,331 @@ static void cpuOpcodeLdcW(void) {
     }
 
     s_cpuFlagsRegister.byte = busRead16(l_address);
+}
+
+static void cpuOpcodeMovB1(void) {
+    uint8_t l_value = cpuGetRegister8((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
+
+    cpuSetRegister8(s_cpuOpcodeBuffer[0] & 0x000f, l_value);
+
+    s_cpuFlagsRegister.bitField.negative = (l_value & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_value == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovW1(void) {
+    uint16_t l_value = cpuGetRegister16((s_cpuOpcodeBuffer[0] & 0x00f0) >> 4);
+
+    cpuSetRegister16(s_cpuOpcodeBuffer[0] & 0x000f, l_value);
+
+    s_cpuFlagsRegister.bitField.negative = (l_value & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_value == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovL1(void) {
+    uint32_t l_value = cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
+
+    cpuSetRegister32(s_cpuOpcodeBuffer[0] & 0x0007, l_value);
+
+    s_cpuFlagsRegister.bitField.negative = (l_value & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_value == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovB2(void) {
+    uint8_t l_operand;
+    enum te_cpuRegister l_rd;
+
+    if((s_cpuOpcodeBuffer[0] & 0xf000) == 0xf000) { // MOV.B #xx:8, Rd
+        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 4;
+        l_operand = s_cpuOpcodeBuffer[0];
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6800) { // MOV.B @ERs, Rd
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+        l_operand = busRead8(cpuGetRegister32(l_ers));
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6e00) { // MOV.B
+                                                           // @(d:16, ERs), Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint16_t l_disp = cpuFetch16();
+        l_operand = busRead8(cpuGetRegister32(l_ers) + l_disp);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7800) { // MOV.B
+                                                           // @(d:24, ERs), Rd
+        l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint32_t l_disp = cpuFetch32();
+
+        l_operand = busRead8(cpuGetRegister32(l_ers) + l_disp);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6c00) { // MOV.B @ERs+, Rd
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+        uint32_t l_address = cpuGetRegister32(l_ers);
+        l_operand = busRead8(l_address);
+
+        cpuSetRegister32(l_ers, l_address + 1);
+    } else if((s_cpuOpcodeBuffer[0] & 0xf000) == 0x2000) { // MOV.B @aa:8, Rd
+        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 8;
+        uint32_t l_address = 0xffffff00 | s_cpuOpcodeBuffer[0];
+
+        l_operand = busRead8(l_address);
+    } else if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x6a00) { // MOV.B @aa:16, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand = busRead8(cpuFetch16());
+    } else { // MOV.B @aa:24, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand = busRead8(cpuFetch32());
+    }
+
+    cpuSetRegister8(l_rd, l_operand);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovW2(void) {
+    uint16_t l_operand;
+    enum te_cpuRegister l_rd;
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7900) { // MOV.W #xx:16, Rd
+        l_operand = cpuFetch16();
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6900) { // MOV.W @ERs, Rd
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+        l_operand = busRead16(cpuGetRegister32(l_ers));
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6f00) { // MOV.W
+                                                           // @(d:16, ERs), Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint16_t l_disp = cpuFetch16();
+        l_operand = busRead16(cpuGetRegister32(l_ers) + l_disp);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7800) { // MOV.W
+                                                           // @(d:24, ERs), Rd
+        l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint32_t l_disp = cpuFetch32();
+
+        l_operand = busRead16(cpuGetRegister32(l_ers) + l_disp);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6d00) { // MOV.W @ERs+, Rd
+        enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+        uint32_t l_address = cpuGetRegister32(l_ers);
+        l_operand = busRead16(l_address);
+
+        cpuSetRegister32(l_ers, l_address + 2);
+    } else if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x6b00) { // MOV.W @aa:16, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand = busRead16(cpuFetch16());
+    } else { // MOV.W @aa:24, Rd
+        l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_operand = busRead16(cpuFetch32());
+    }
+
+    cpuSetRegister16(l_rd, l_operand);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovL2(void) {
+    uint32_t l_operand;
+    enum te_cpuRegister l_erd;
+
+    if(s_cpuOpcodeBuffer[0] == 0x0100) {
+        if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6900) { // MOV.L @ERs, ERd
+            enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+
+            l_operand = busRead32(cpuGetRegister32(l_ers));
+        } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6f00) { // MOV.L
+                                                               // @(d:16, ERs),
+                                                               // ERd
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+            enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+            uint16_t l_disp = cpuFetch16();
+            l_operand = busRead32(cpuGetRegister32(l_ers) + l_disp);
+        } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7800) { // MOV.L
+                                                               // @(d:24, ERs),
+                                                               // ERd
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+            enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+            uint32_t l_disp = cpuFetch32();
+
+            l_operand = busRead32(cpuGetRegister32(l_ers) + l_disp);
+        } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6d00) { // MOV.L @ERs+,
+                                                               // ERd
+            enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+
+            uint32_t l_address = cpuGetRegister32(l_ers);
+            l_operand = busRead32(l_address);
+
+            cpuSetRegister32(l_ers, l_address + 2);
+        } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b00) { // MOV.L @aa:16,
+                                                               // ERd
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+            l_operand = busRead32(cpuFetch16());
+        } else { // MOV.L @aa:24, ERd
+            l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+            l_operand = busRead32(cpuFetch32());
+        }
+    } else { // MOV.L #xx:32, ERd
+        l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+        l_operand = cpuFetch32();
+    }
+
+    cpuSetRegister32(l_erd, l_operand);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMovB3(void) {
+    enum te_cpuRegister l_rs;
+    uint32_t l_address;
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6800) { // MOV.B Rs, @ERd
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+
+        l_address = cpuGetRegister32(l_erd);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6e00) { // MOV.B Rs,
+                                                           // @(d:16, ERd)
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint16_t l_disp = cpuFetch16();
+
+        l_address = cpuGetRegister32(l_erd) + l_disp;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7800) { // MOV.B Rs,
+                                                           // @(d:24, ERd)
+        l_rs = s_cpuOpcodeBuffer[1] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        uint32_t l_disp = cpuFetch32();
+
+        l_address = cpuGetRegister32(l_erd) + l_disp;
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6c00) { // MOV.B Rs, @-ERd
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd);
+
+        l_address--;
+
+        cpuSetRegister32(l_erd, l_address);
+    } else if((s_cpuOpcodeBuffer[0] & 0xf000) == 0x3000) { // MOV.B Rs, @aa:8
+        l_rs = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 16;
+        l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
+    } else if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x6a80) { // MOV.B Rs, @aa:16
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_address = 0xffff0000 | cpuFetch16();
+    } else { // MOV.B Rs, @aa:24
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_address = cpuFetch32();
+    }
+
+    uint8_t l_operand = cpuGetRegister8(l_rs);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    busWrite8(l_address, l_operand);
+}
+
+static void cpuOpcodeMovW3(void) {
+    enum te_cpuRegister l_rs;
+    uint32_t l_address;
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6900) { // MOV.W Rs, @ERd
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+
+        l_address = cpuGetRegister32(l_erd);
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6f00) { // MOV.W Rs,
+                                                           // @(d:16, ERd)
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd) + cpuFetch16();
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x7800) { // MOV.W Rs,
+                                                           // @(d:24, ERd)
+        l_rs = s_cpuOpcodeBuffer[1] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd) + cpuFetch32();
+    } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6d00) { // MOV.W Rs, @-ERd
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd);
+
+        l_address--;
+
+        cpuSetRegister32(l_erd, l_address);
+    } else if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x6b80) { // MOV.W Rs, @aa:16
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_address = cpuFetch16();
+    } else { // MOV.W Rs, @aa:24
+        l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+        l_address = cpuFetch32();
+    }
+
+    uint16_t l_operand = cpuGetRegister16(l_rs);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    busWrite16(l_address, l_operand);
+}
+
+static void cpuOpcodeMovL3(void) {
+    enum te_cpuRegister l_ers;
+    uint32_t l_address;
+
+    if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6900) { // MOV.L ERs, @ERd
+        l_ers = s_cpuOpcodeBuffer[1] & 0x0007;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd);
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6f00) { // MOV.L ERs,
+                                                           // @(d:16, ERd)
+        l_ers = s_cpuOpcodeBuffer[1] & 0x0007;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+
+        l_address = cpuGetRegister32(l_erd) + cpuFetch16();
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7800) { // MOV.L ERs,
+                                                           // @(d:24, ERd)
+        l_ers = s_cpuOpcodeBuffer[2] & 0x0007;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+
+        l_address = cpuGetRegister32(l_erd) + cpuFetch32();
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6d00) { // MOV.L ERs, @-ERd
+        l_ers = s_cpuOpcodeBuffer[2] & 0x0007;
+        enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
+        l_address = cpuGetRegister32(l_erd);
+
+        l_address--;
+
+        cpuSetRegister32(l_erd, l_address);
+    } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b80) { // MOV.L ERs, @aa:16
+        l_ers = s_cpuOpcodeBuffer[2] & 0x0007;
+        l_address = cpuFetch16();
+    } else { // MOV.L ERs, @aa:24
+        l_ers = s_cpuOpcodeBuffer[2] & 0x0007;
+        l_address = cpuFetch32();
+    }
+
+    uint32_t l_operand = cpuGetRegister32(l_ers);
+
+    s_cpuFlagsRegister.bitField.negative = (l_operand & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_operand == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+
+    busWrite32(l_address, l_operand);
 }
 
 static void cpuOpcodeNop(void) {

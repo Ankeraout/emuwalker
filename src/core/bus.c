@@ -27,34 +27,34 @@ enum te_busPeripheral {
 // =============================================================================
 /**
  * @brief Gets the peripheral from the bus address.
- * 
+ *
  * @param[in] p_address The bus address.
- * 
+ *
  * @returns The peripheral associated to the given bus address.
  */
 static inline struct ts_busPeripheral *busGetPeripheral(uint16_t p_address);
 
 /**
  * @brief Reads a byte from open bus (0xff).
- * 
+ *
  * @param[in] p_address The address to read from.
- * 
+ *
  * @returns The open bus value (0xff).
  */
 static uint8_t busOpenRead8(uint16_t p_address);
 
 /**
  * @brief Reads a word from open bus (0xffff).
- * 
+ *
  * @param[in] p_address The address to read from.
- * 
+ *
  * @returns The open bus value (0xffff).
  */
 static uint16_t busOpenRead16(uint16_t p_address);
 
 /**
  * @brief Writes a byte to open bus.
- * 
+ *
  * @param[in] p_address The address to write to.
  * @param[in] p_value The byte to write.
  */
@@ -62,7 +62,7 @@ static void busOpenWrite8(uint16_t p_address, uint8_t p_value);
 
 /**
  * @brief Writes a word to open bus.
- * 
+ *
  * @param[in] p_address The address to write to.
  * @param[in] p_value The word to write.
  */
@@ -460,7 +460,7 @@ uint8_t busRead8(uint16_t p_address) {
 }
 
 uint16_t busRead16(uint16_t p_address) {
-    struct ts_busPeripheral *l_busPeripheral =  
+    struct ts_busPeripheral *l_busPeripheral =
         busGetPeripheral(p_address & 0xfffeU);
 
     if(l_busPeripheral->read16 != NULL) {
@@ -471,12 +471,19 @@ uint16_t busRead16(uint16_t p_address) {
     }
 }
 
+uint32_t busRead32(uint16_t p_address) {
+    uint16_t l_highPart = busRead16(p_address);
+    uint16_t l_lowPart = busRead16(p_address + 2);
+
+    return (l_highPart << 16) | l_lowPart;
+}
+
 void busWrite8(uint16_t p_address, uint8_t p_value) {
     busGetPeripheral(p_address)->write8(p_address, p_value);
 }
 
-void busWrite16(uint16_t p_address, uint16_t p_value) { 
-    struct ts_busPeripheral *l_busPeripheral =  
+void busWrite16(uint16_t p_address, uint16_t p_value) {
+    struct ts_busPeripheral *l_busPeripheral =
         busGetPeripheral(p_address & 0xfffeU);
 
     if(l_busPeripheral->write16 != NULL) {
@@ -485,6 +492,14 @@ void busWrite16(uint16_t p_address, uint16_t p_value) {
         l_busPeripheral->write8(p_address & 0xfffeU, p_value >> 8U);
         l_busPeripheral->write8(p_address | 0x0001, p_value);
     }
+}
+
+void busWrite32(uint16_t p_address, uint32_t p_value) {
+    uint16_t l_highPart = p_value >> 16;
+    uint16_t l_lowPart = p_value;
+
+    busWrite16(p_address, l_highPart);
+    busWrite16(p_address + 2, l_lowPart);
 }
 
 // =============================================================================
