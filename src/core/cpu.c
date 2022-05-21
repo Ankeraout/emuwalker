@@ -738,6 +738,11 @@ static void cpuOpcodeShlrW(void);
 static void cpuOpcodeShlrL(void);
 
 /**
+ * @brief Executes the SLEEP opcode.
+ */
+static void cpuOpcodeSleep(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -1180,7 +1185,7 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
 
             break;
 
-        case 0x018: // TODO: SLEEP
+        case 0x018: return cpuOpcodeSleep;
         case 0x01c:
         case 0x01d:
         case 0x01f: return cpuDecodeGroup3();
@@ -3687,6 +3692,10 @@ static void cpuOpcodeShlrL(void) {
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow = false;
     s_cpuFlagsRegister.bitField.carry = (l_erdValue & 0x00000001) != 0;
+}
+
+static void cpuOpcodeSleep(void) {
+    // TODO: SLEEP
 }
 
 static void cpuOpcodeUndefined(void) {
