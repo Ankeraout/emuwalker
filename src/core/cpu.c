@@ -592,13 +592,6 @@ void coreStep(void) {
 
     // Execute
     l_opcodeHandler();
-
-    printf(
-        "Opcode buffer: %04x %04x %04x\n",
-        s_cpuOpcodeBuffer[0],
-        s_cpuOpcodeBuffer[1],
-        s_cpuOpcodeBuffer[2]
-    );
 }
 
 // =============================================================================
