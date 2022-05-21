@@ -573,6 +573,21 @@ static void cpuOpcodeNegL(void);
 static void cpuOpcodeNop(void);
 
 /**
+ * @brief Executes the NOT.B opcode.
+ */
+static void cpuOpcodeNotB(void);
+
+/**
+ * @brief Executes the NOT.W opcode.
+ */
+static void cpuOpcodeNotW(void);
+
+/**
+ * @brief Executes the NOT.L opcode.
+ */
+static void cpuOpcodeNotL(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -1068,9 +1083,9 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x138:
         case 0x139:
         case 0x13b: // TODO: ROTR
-        case 0x170:
-        case 0x171:
-        case 0x173: // TODO: NOT
+        case 0x170: return cpuOpcodeNotB;
+        case 0x171: return cpuOpcodeNotW;
+        case 0x173: return cpuOpcodeNotL;
         case 0x175: return cpuOpcodeExtuW;
         case 0x177: return cpuOpcodeExtuL;
         case 0x178: return cpuOpcodeNegB;
@@ -3059,6 +3074,45 @@ static void cpuOpcodeNegL(void) {
 
 static void cpuOpcodeNop(void) {
     // Do nothing
+}
+
+static void cpuOpcodeNotB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint8_t l_rdValue = cpuGetRegister8(l_rd);
+    uint8_t l_result = ~l_rdValue;
+
+    cpuSetRegister8(l_rd, l_rdValue);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeNotW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint16_t l_rdValue = cpuGetRegister16(l_rd);
+    uint16_t l_result = ~l_rdValue;
+
+    cpuSetRegister8(l_rd, l_rdValue);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeNotL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint8_t l_erdValue = cpuGetRegister32(l_erd);
+    uint8_t l_result = ~l_erdValue;
+
+    cpuSetRegister32(l_erd, l_erdValue);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
 }
 
 static void cpuOpcodeUndefined(void) {
