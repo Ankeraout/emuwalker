@@ -538,9 +538,19 @@ static void cpuOpcodeMovtpe(void);
 static void cpuOpcodeMulxsB(void);
 
 /**
- * @brief Executes the MULSX.W opcode.
+ * @brief Executes the MULXS.W opcode.
  */
 static void cpuOpcodeMulxsW(void);
+
+/**
+ * @brief Executes the MULXU.B opcode.
+ */
+static void cpuOpcodeMulxuB(void);
+
+/**
+ * @brief Executes the MULXU.W opcode.
+ */
+static void cpuOpcodeMulxuW(void);
 
 /**
  * @brief Executes the NOP opcode.
@@ -706,9 +716,9 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x4d:
         case 0x4e:
         case 0x4f: return cpuOpcodeBcc;
-        case 0x50: // TODO: MULXU
+        case 0x50: return cpuOpcodeMulxuB;
         case 0x51: return cpuOpcodeDivxuB;
-        case 0x52: // TODO: MULXU
+        case 0x52: return cpuOpcodeMulxuW;
         case 0x53: return cpuOpcodeDivxuW;
         case 0x54: // TODO: RTS
         case 0x55: return cpuOpcodeBsr;
@@ -2958,6 +2968,28 @@ static void cpuOpcodeMulxsW(void) {
 
     s_cpuFlagsRegister.bitField.negative = l_product < 0;
     s_cpuFlagsRegister.bitField.zero = l_product == 0;
+
+    cpuSetRegister32(l_erd, l_product);
+}
+
+static void cpuOpcodeMulxuB(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    uint8_t l_multiplicand = cpuGetRegister16(l_rd);
+    uint8_t l_multiplier = cpuGetRegister8(l_rs);
+    uint16_t l_product = l_multiplicand * l_multiplier;
+
+    cpuSetRegister16(l_rd, l_product);
+}
+
+static void cpuOpcodeMulxuW(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+
+    uint16_t l_multiplicand = cpuGetRegister32(l_erd);
+    uint16_t l_multiplier = cpuGetRegister16(l_rs);
+    uint32_t l_product = l_multiplicand * l_multiplier;
 
     cpuSetRegister32(l_erd, l_product);
 }
