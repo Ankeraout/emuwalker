@@ -708,6 +708,36 @@ static void cpuOpcodeSharW(void);
 static void cpuOpcodeSharL(void);
 
 /**
+ * @brief Executes the SHLL.B opcode.
+ */
+static void cpuOpcodeShllB(void);
+
+/**
+ * @brief Executes the SHLL.W opcode.
+ */
+static void cpuOpcodeShllW(void);
+
+/**
+ * @brief Executes the SHLL.L opcode.
+ */
+static void cpuOpcodeShllL(void);
+
+/**
+ * @brief Executes the SHLR.B opcode.
+ */
+static void cpuOpcodeShlrB(void);
+
+/**
+ * @brief Executes the SHLR.W opcode.
+ */
+static void cpuOpcodeShlrW(void);
+
+/**
+ * @brief Executes the SHLR.L opcode.
+ */
+static void cpuOpcodeShlrL(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -1179,15 +1209,15 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
         case 0x0fd:
         case 0x0fe:
         case 0x0ff: return cpuOpcodeMovL1;
-        case 0x100:
-        case 0x101:
-        case 0x103: // TODO: SHLL
+        case 0x100: return cpuOpcodeShllB;
+        case 0x101: return cpuOpcodeShllW;
+        case 0x103: return cpuOpcodeShllL;
         case 0x108: return cpuOpcodeShalB;
         case 0x109: return cpuOpcodeShalW;
         case 0x10b: return cpuOpcodeShalL;
-        case 0x110:
-        case 0x111:
-        case 0x113: // TODO: SHLR
+        case 0x110: return cpuOpcodeShlrB;
+        case 0x111: return cpuOpcodeShlrW;
+        case 0x113: return cpuOpcodeShlrL;
         case 0x118: return cpuOpcodeSharB;
         case 0x119: return cpuOpcodeSharW;
         case 0x11b: return cpuOpcodeSharL;
@@ -3566,6 +3596,90 @@ static void cpuOpcodeSharL(void) {
 
     int32_t l_erdValue = cpuGetRegister32(l_erd);
     int32_t l_result = l_erdValue >> 1;
+
+    cpuSetRegister32(l_erd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_erdValue & 0x00000001) != 0;
+}
+
+static void cpuOpcodeShllB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint8_t l_rdValue = cpuGetRegister8(l_rd);
+    uint8_t l_result = l_rdValue << 1;
+
+    cpuSetRegister8(l_rd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_rdValue & 0x80) != 0;
+}
+
+static void cpuOpcodeShllW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint16_t l_rdValue = cpuGetRegister16(l_rd);
+    uint16_t l_result = l_rdValue << 1;
+
+    cpuSetRegister16(l_rd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_rdValue & 0x8000) != 0;
+}
+
+static void cpuOpcodeShllL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+
+    uint32_t l_erdValue = cpuGetRegister32(l_erd);
+    uint32_t l_result = l_erdValue << 1;
+
+    cpuSetRegister32(l_erd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_erdValue & 0x80000000) != 0;
+}
+
+static void cpuOpcodeShlrB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint8_t l_rdValue = cpuGetRegister8(l_rd);
+    uint8_t l_result = l_rdValue >> 1;
+
+    cpuSetRegister8(l_rd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_rdValue & 0x01) != 0;
+}
+
+static void cpuOpcodeShlrW(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    uint16_t l_rdValue = cpuGetRegister16(l_rd);
+    uint16_t l_result = l_rdValue >> 1;
+
+    cpuSetRegister16(l_rd, l_result);
+
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x8000) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+    s_cpuFlagsRegister.bitField.carry = (l_rdValue & 0x0001) != 0;
+}
+
+static void cpuOpcodeShlrL(void) {
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+
+    uint32_t l_erdValue = cpuGetRegister32(l_erd);
+    uint32_t l_result = l_erdValue >> 1;
 
     cpuSetRegister32(l_erd, l_result);
 
