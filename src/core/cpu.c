@@ -523,6 +523,16 @@ static void cpuOpcodeMovW3(void);
 static void cpuOpcodeMovL3(void);
 
 /**
+ * @brief Executes the MOVFPE opcode.
+ */
+static void cpuOpcodeMovfpe(void);
+
+/**
+ * @brief Executes the MOVTPE opcode.
+ */
+static void cpuOpcodeMovtpe(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -549,6 +559,7 @@ void cpuReset(void) {
 void coreStep(void) {
     if(!s_cpuInitialized) {
         s_cpuRegisterPC = busRead16(0x0000U);
+        s_cpuInitialized = true;
     }
 
     // Trace
@@ -581,6 +592,13 @@ void coreStep(void) {
 
     // Execute
     l_opcodeHandler();
+
+    printf(
+        "Opcode buffer: %04x %04x %04x\n",
+        s_cpuOpcodeBuffer[0],
+        s_cpuOpcodeBuffer[1],
+        s_cpuOpcodeBuffer[2]
+    );
 }
 
 // =============================================================================
@@ -718,13 +736,25 @@ static inline tf_opcodeHandler cpuDecode(void) {
             break;
 
         case 0x68:
-        case 0x6a:
         case 0x6c:
         case 0x6e:
             if((s_cpuOpcodeBuffer[0] & 0x0080) == 0x0000) { // MOV.B (EAs), ERd
                 return cpuOpcodeMovB2;
             } else { // MOV.B Rs, (EAd)
                 return cpuOpcodeMovB3;
+            }
+
+        case 0x6a:
+            if((s_cpuOpcodeBuffer[0] & 0x00c0) == 0x0000) { // MOV.B (EAs), ERd
+                return cpuOpcodeMovB2;
+            } else if((s_cpuOpcodeBuffer[0] & 0x00c0) == 0x0040) { // MOVFPE
+                                                                   // @aa:16, Rd
+                return cpuOpcodeMovfpe;
+            } else if((s_cpuOpcodeBuffer[0] & 0x00c0) == 0x0080) { // MOV.B
+                                                                   // (EAs), ERd
+                return cpuOpcodeMovB3;
+            } else { // MOVTPE @aa:16, Rd
+                return cpuOpcodeMovtpe;
             }
 
         case 0x69:
@@ -2475,8 +2505,8 @@ static void cpuOpcodeJmp(void) {
         s_cpuRegisterPC =
             cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
     } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5a00) { // JMP @aa:24
-        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x0f00) << 16)
-            | s_cpuOpcodeBuffer[1];
+        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x00ff) << 16)
+            | cpuFetch16();
     } else { // JMP @@aa:8
         uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
         s_cpuRegisterPC = busRead16(l_address);
@@ -2494,8 +2524,8 @@ static void cpuOpcodeJsr(void) {
         s_cpuRegisterPC =
             cpuGetRegister32((s_cpuOpcodeBuffer[0] & 0x0070) >> 4);
     } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x5e00) { // JSR @aa:24
-        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x0f00) << 16)
-            | s_cpuOpcodeBuffer[1];
+        s_cpuRegisterPC = ((s_cpuOpcodeBuffer[0] & 0x00ff) << 16)
+            | cpuFetch16();
     } else { // JSR @@aa:8
         uint32_t l_address = 0xffffff00 | (s_cpuOpcodeBuffer[0] & 0x00ff);
         s_cpuRegisterPC = busRead16(l_address);
@@ -2709,7 +2739,7 @@ static void cpuOpcodeMovL2(void) {
             uint32_t l_address = cpuGetRegister32(l_ers);
             l_operand = busRead32(l_address);
 
-            cpuSetRegister32(l_ers, l_address + 2);
+            cpuSetRegister32(l_ers, l_address + 4);
         } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b00) { // MOV.L @aa:16,
                                                                // ERd
             l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
@@ -2805,7 +2835,7 @@ static void cpuOpcodeMovW3(void) {
         enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
         l_address = cpuGetRegister32(l_erd);
 
-        l_address--;
+        l_address -= 2;
 
         cpuSetRegister32(l_erd, l_address);
     } else if((s_cpuOpcodeBuffer[0] & 0xfff0) == 0x6b80) { // MOV.W Rs, @aa:16
@@ -2850,7 +2880,7 @@ static void cpuOpcodeMovL3(void) {
         enum te_cpuRegister l_erd = (s_cpuOpcodeBuffer[1] & 0x0070) >> 4;
         l_address = cpuGetRegister32(l_erd);
 
-        l_address--;
+        l_address -= 4;
 
         cpuSetRegister32(l_erd, l_address);
     } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b80) { // MOV.L ERs, @aa:16
@@ -2868,6 +2898,27 @@ static void cpuOpcodeMovL3(void) {
     s_cpuFlagsRegister.bitField.overflow = false;
 
     busWrite32(l_address, l_operand);
+}
+
+static void cpuOpcodeMovfpe(void) {
+    uint16_t l_address = cpuFetch16();
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    cpuSetRegister8(l_rd, 0xff);
+
+    // Remove unused variable warnings
+    (void)l_address;
+}
+
+static void cpuOpcodeMovtpe(void) {
+    uint16_t l_address = cpuFetch16();
+    enum te_cpuRegister l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    // TODO: What happens when executing MOVTPE without an external clock?
+
+    // Remove unused variable warnings
+    (void)l_address;
+    (void)l_rs;
 }
 
 static void cpuOpcodeNop(void) {
