@@ -773,6 +773,11 @@ static void cpuOpcodeSubL(void);
 static void cpuOpcodeSubs(void);
 
 /**
+ * @brief Executes the SUBS opcode.
+ */
+static void cpuOpcodeSubx(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -881,7 +886,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x1b: return cpuDecodeGroup2();
         case 0x1c: return cpuOpcodeCmpB;
         case 0x1d: return cpuOpcodeCmpW;
-        case 0x1e: // TODO: SUBX
+        case 0x1e: return cpuOpcodeSubx;
         case 0x1f: return cpuDecodeGroup2();
         case 0x20:
         case 0x21:
@@ -1127,7 +1132,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0xbc:
         case 0xbd:
         case 0xbe:
-        case 0xbf: // TODO: SUBX
+        case 0xbf: return cpuOpcodeSubx;
         case 0xc0:
         case 0xc1:
         case 0xc2:
@@ -3852,6 +3857,33 @@ static void cpuOpcodeSubs(void) {
     uint32_t l_erdValue = cpuGetRegister32(l_erd);
 
     cpuSetRegister32(l_erd, l_erdValue - l_immediate);
+}
+
+static void cpuOpcodeSubx(void) {
+    uint16_t l_operand;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+
+    if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x1e00) {
+        enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[0] & 0x00f0) >> 4;
+        l_operand = cpuGetRegister8(l_rs);
+    } else {
+        l_operand = s_cpuOpcodeBuffer[0] & 0xff;
+    }
+
+    l_operand += s_cpuFlagsRegister.bitField.carry ? 1 : 0;
+
+    uint8_t l_operand2 = cpuGetRegister8(l_rd);
+    uint8_t l_result = l_operand2 - l_operand;
+
+    cpuSetRegister8(l_rd, l_result);
+
+    s_cpuFlagsRegister.bitField.halfCarry =
+        (l_operand & 0x0f) > (l_operand2 & 0x0f);
+    s_cpuFlagsRegister.bitField.negative = (l_result & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_result == 0;
+    s_cpuFlagsRegister.bitField.overflow =
+        (((l_operand2 ^ l_operand) & ~(l_operand ^ l_result)) & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.carry = l_operand > l_operand2;
 }
 
 static void cpuOpcodeUndefined(void) {
