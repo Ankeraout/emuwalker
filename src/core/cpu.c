@@ -743,6 +743,16 @@ static void cpuOpcodeShlrL(void);
 static void cpuOpcodeSleep(void);
 
 /**
+ * @brief Executes the STC.B opcode.
+ */
+static void cpuOpcodeStcB(void);
+
+/**
+ * @brief Executes the STC.W opcode.
+ */
+static void cpuOpcodeStcW(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -823,7 +833,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
     switch(s_cpuOpcodeBuffer[0] >> 8) {
         case 0x00: return cpuOpcodeNop;
         case 0x01: return cpuDecodeGroup2();
-        case 0x02: // TODO: STC
+        case 0x02: return cpuOpcodeStcB;
         case 0x03: return cpuOpcodeLdcB;
         case 0x04: return cpuOpcodeOrc;
         case 0x05: // TODO: XORG
@@ -1177,10 +1187,12 @@ static inline tf_opcodeHandler cpuDecodeGroup2(void) {
                 return cpuOpcodeMovL3;
             }
         case 0x014:
-            if((s_cpuOpcodeBuffer[0] & 0x0008) == 0x0000) {
+            s_cpuOpcodeBuffer[1] = cpuFetch16();
+
+            if((s_cpuOpcodeBuffer[1] & 0x0008) == 0x0000) {
                 return cpuOpcodeLdcW;
             } else {
-                // TODO: STC
+                return cpuOpcodeStcW;
             }
 
             break;
@@ -3692,6 +3704,47 @@ static void cpuOpcodeShlrL(void) {
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow = false;
     s_cpuFlagsRegister.bitField.carry = (l_erdValue & 0x00000001) != 0;
+}
+
+static void cpuOpcodeStcB(void) {
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
+    cpuSetRegister8(l_rd, s_cpuFlagsRegister.byte);
+}
+
+static void cpuOpcodeStcW(void) {
+    uint32_t l_address;
+
+    if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6900) { // STC.W CCR, @ERd
+        enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+
+        l_address = cpuGetRegister32(l_erd);
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6f00) { // STC.W CCR,
+                                                           // @(d:16, ERd)
+        enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+        int16_t l_disp = cpuFetch16();
+
+        l_address = cpuGetRegister32(l_erd) + l_disp;
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x7800) { // STC.W CCR,
+                                                           // @(d:24, ERd)
+        enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+        cpuFetch16();
+        int32_t l_disp = cpuFetch32();
+
+        l_address = cpuGetRegister32(l_erd) + l_disp;
+    } else if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x6d00) { // STC.W CCR, @-ERd
+        enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[0] & 0x0007;
+        l_address = cpuGetRegister32(l_erd);
+
+        l_address -= 2;
+
+        cpuSetRegister32(l_erd, l_address);
+    } else if((s_cpuOpcodeBuffer[1] & 0xfff0) == 0x6b80) { // STC.W CCR, @aa:16
+        l_address = cpuFetch16();
+    } else { // STC.W CCR, @aa:24
+        l_address = cpuFetch32();
+    }
+
+    busWrite16(l_address, s_cpuFlagsRegister.byte);
 }
 
 static void cpuOpcodeSleep(void) {

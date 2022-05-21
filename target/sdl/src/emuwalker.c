@@ -125,6 +125,8 @@ int main(int p_argc, const char *p_argv[]) {
     if(l_returnValue != EXIT_FAILURE) {
         while(true) {
             coreStep();
+            fflush(stdout);
+            system("sleep 1");
         }
     }
 
