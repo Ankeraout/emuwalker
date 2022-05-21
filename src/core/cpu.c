@@ -603,6 +603,11 @@ static void cpuOpcodeOrW(void);
 static void cpuOpcodeOrL(void);
 
 /**
+ * @brief Executes the ORC opcode.
+ */
+static void cpuOpcodeOrc(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -685,7 +690,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x01: return cpuDecodeGroup2();
         case 0x02: // TODO: STC
         case 0x03: return cpuOpcodeLdcB;
-        case 0x04: // TODO: ORG
+        case 0x04: return cpuOpcodeOrc;
         case 0x05: // TODO: XORG
         case 0x06: return cpuOpcodeAndC;
         case 0x07: return cpuOpcodeLdcB;
@@ -3197,6 +3202,12 @@ static void cpuOpcodeOrL(void) {
     s_cpuFlagsRegister.bitField.negative = (l_result & 0x80000000) != 0;
     s_cpuFlagsRegister.bitField.zero = l_result == 0;
     s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeOrc(void) {
+    uint8_t l_imm = s_cpuOpcodeBuffer[0];
+
+    s_cpuFlagsRegister.byte |= l_imm;
 }
 
 static void cpuOpcodeUndefined(void) {
