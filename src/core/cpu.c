@@ -533,6 +533,16 @@ static void cpuOpcodeMovfpe(void);
 static void cpuOpcodeMovtpe(void);
 
 /**
+ * @brief Executes the MULXS.B opcode.
+ */
+static void cpuOpcodeMulxsB(void);
+
+/**
+ * @brief Executes the MULSX.W opcode.
+ */
+static void cpuOpcodeMulxsW(void);
+
+/**
  * @brief Executes the NOP opcode.
  */
 static void cpuOpcodeNop(void);
@@ -1115,7 +1125,12 @@ static inline tf_opcodeHandler cpuDecodeGroup3(void) {
                 ((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00c0)
                 && ((s_cpuOpcodeBuffer[1] & 0xfd00) == 0x5000)
             ) {
-                // TODO: MULXS
+                if((s_cpuOpcodeBuffer[1] & 0xff00) == 0x5000) { // MULXS.B Rs,
+                                                                // Rd
+                    return cpuOpcodeMulxsB;
+                } else { // MULXS.W Rs, Rd
+                    return cpuOpcodeMulxsW;
+                }
             } else if(
                 ((s_cpuOpcodeBuffer[0] & 0x00ff) == 0x00d0)
                 && ((s_cpuOpcodeBuffer[1] & 0xfd00) == 0x5100)
@@ -2897,21 +2912,54 @@ static void cpuOpcodeMovfpe(void) {
     uint16_t l_address = cpuFetch16();
     enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[0] & 0x000f;
 
-    cpuSetRegister8(l_rd, 0xff);
+    uint8_t l_value = busRead8(l_address);
 
-    // Remove unused variable warnings
-    (void)l_address;
+    cpuSetRegister8(l_rd, l_value);
+
+    s_cpuFlagsRegister.bitField.negative = (l_value & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_value == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
 }
 
 static void cpuOpcodeMovtpe(void) {
     uint16_t l_address = cpuFetch16();
     enum te_cpuRegister l_rs = s_cpuOpcodeBuffer[0] & 0x000f;
 
-    // TODO: What happens when executing MOVTPE without an external clock?
+    uint8_t l_value = cpuGetRegister8(l_rs);
 
-    // Remove unused variable warnings
-    (void)l_address;
-    (void)l_rs;
+    busWrite8(l_address, l_value);
+
+    s_cpuFlagsRegister.bitField.negative = (l_value & 0x80) != 0;
+    s_cpuFlagsRegister.bitField.zero = l_value == 0;
+    s_cpuFlagsRegister.bitField.overflow = false;
+}
+
+static void cpuOpcodeMulxsB(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_rd = s_cpuOpcodeBuffer[1] & 0x000f;
+
+    int8_t l_multiplicand = cpuGetRegister16(l_rd);
+    int8_t l_multiplier = cpuGetRegister8(l_rs);
+    int16_t l_product = l_multiplicand * l_multiplier;
+
+    cpuSetRegister16(l_rd, l_product);
+
+    s_cpuFlagsRegister.bitField.negative = l_product < 0;
+    s_cpuFlagsRegister.bitField.zero = l_product == 0;
+}
+
+static void cpuOpcodeMulxsW(void) {
+    enum te_cpuRegister l_rs = (s_cpuOpcodeBuffer[1] & 0x00f0) >> 4;
+    enum te_cpuRegister l_erd = s_cpuOpcodeBuffer[1] & 0x0007;
+
+    int16_t l_multiplicand = cpuGetRegister32(l_erd);
+    int16_t l_multiplier = cpuGetRegister16(l_rs);
+    int32_t l_product = l_multiplicand * l_multiplier;
+
+    s_cpuFlagsRegister.bitField.negative = l_product < 0;
+    s_cpuFlagsRegister.bitField.zero = l_product == 0;
+
+    cpuSetRegister32(l_erd, l_product);
 }
 
 static void cpuOpcodeNop(void) {
