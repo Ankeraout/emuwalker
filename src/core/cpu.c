@@ -673,6 +673,11 @@ static void cpuOpcodeRotxrL(void);
 static void cpuOpcodeRte(void);
 
 /**
+ * @brief Executes the RTS opcode.
+ */
+static void cpuOpcodeRts(void);
+
+/**
  * @brief Executes an undefined opcode.
  */
 static void cpuOpcodeUndefined(void);
@@ -835,7 +840,7 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0x51: return cpuOpcodeDivxuB;
         case 0x52: return cpuOpcodeMulxuW;
         case 0x53: return cpuOpcodeDivxuW;
-        case 0x54: // TODO: RTS
+        case 0x54: return cpuOpcodeRts;
         case 0x55: return cpuOpcodeBsr;
         case 0x56: return cpuOpcodeRte;
         case 0x57: // TODO: TRAPA
@@ -3444,6 +3449,14 @@ static void cpuOpcodeRte(void) {
     s_cpuRegisterPC = busRead16(l_spValue + 2);
 
     cpuSetRegister32(E_CPUREGISTER_ER7, l_spValue + 4);
+}
+
+static void cpuOpcodeRts(void) {
+    uint32_t l_spValue = cpuGetRegister32(E_CPUREGISTER_ER7);
+
+    s_cpuRegisterPC = busRead16(l_spValue);
+
+    cpuSetRegister32(E_CPUREGISTER_ER7, l_spValue + 2);
 }
 
 static void cpuOpcodeUndefined(void) {
