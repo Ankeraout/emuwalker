@@ -56,10 +56,6 @@ int coreInit(void) {
     return 0;
 }
 
-int coreReset(void) {
-    return 0;
-}
-
 int coreLoadFile(
     enum te_coreFile p_coreFile,
     uint8_t *p_buffer,

@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "common.h"
+#include "core/ram.h"
 #include "core/rom.h"
 
 // =============================================================================
@@ -19,7 +20,8 @@ struct ts_busPeripheral {
 
 enum te_busPeripheral {
     E_BUS_PERIPHERAL_NONE,
-    E_BUS_PERIPHERAL_ROM
+    E_BUS_PERIPHERAL_ROM,
+    E_BUS_PERIPHERAL_RAM
 };
 
 // =============================================================================
@@ -83,6 +85,12 @@ struct ts_busPeripheral s_busPeripherals[] = {
         .read16 = romRead16,
         .write8 = romWrite8,
         .write16 = romWrite16
+    },
+    {
+        .read8 = ramRead8,
+        .read16 = ramRead16,
+        .write8 = ramWrite8,
+        .write16 = ramWrite16
     }
 };
 
@@ -514,8 +522,8 @@ static inline struct ts_busPeripheral *busGetPeripheral(uint16_t p_address) {
         return s_io1BusPeripherals[p_address - 0xf020U];
     } else if(p_address <= 0xf77fU) { // 0xf100 - 0xf77f: Open bus
         return &s_busPeripherals[E_BUS_PERIPHERAL_NONE];
-    } else if(p_address <= 0xf780U) { // 0xf780 - 0xff7f: RAM
-        return &s_busPeripherals[E_BUS_PERIPHERAL_NONE];
+    } else if(p_address <= 0xff7fU) { // 0xf780 - 0xff7f: RAM
+        return &s_busPeripherals[E_BUS_PERIPHERAL_RAM];
     } else { // 0xff80-0xffff: IO2
         return s_io2BusPeripherals[p_address & 0x00ffU];
     }

@@ -827,28 +827,6 @@ void coreStep(void) {
         s_cpuInitialized = true;
     }
 
-    // Trace
-    printf("===========================================================\n");
-    printf(
-        "ER0=0x%08x ER1=0x%08x ER2=0x%08x ER3=0x%08x\n",
-        cpuGetRegister32(E_CPUREGISTER_ER0),
-        cpuGetRegister32(E_CPUREGISTER_ER1),
-        cpuGetRegister32(E_CPUREGISTER_ER2),
-        cpuGetRegister32(E_CPUREGISTER_ER3)
-    );
-    printf(
-        "ER4=0x%08x ER5=0x%08x ER6=0x%08x ER7=0x%08x\n",
-        cpuGetRegister32(E_CPUREGISTER_ER4),
-        cpuGetRegister32(E_CPUREGISTER_ER5),
-        cpuGetRegister32(E_CPUREGISTER_ER6),
-        cpuGetRegister32(E_CPUREGISTER_ER7)
-    );
-    printf(
-        "PC=0x%08x FLAGS=0x%02x\n",
-        s_cpuRegisterPC,
-        s_cpuFlagsRegister.byte
-    );
-
     // Fetch
     s_cpuOpcodeBuffer[0] = cpuFetch16();
 
@@ -880,7 +858,7 @@ static inline uint32_t cpuFetch32(void) {
 }
 
 static inline tf_opcodeHandler cpuDecode(void) {
-    switch(s_cpuOpcodeBuffer[0] >> 8) {
+    switch((uint8_t)(s_cpuOpcodeBuffer[0] >> 8)) {
         case 0x00: return cpuOpcodeNop;
         case 0x01: return cpuDecodeGroup2();
         case 0x02: return cpuOpcodeStcB;
@@ -1222,7 +1200,6 @@ static inline tf_opcodeHandler cpuDecode(void) {
         case 0xfd:
         case 0xfe:
         case 0xff: return cpuOpcodeMovB2;
-            break;
     }
 }
 
@@ -2875,7 +2852,7 @@ static void cpuOpcodeMovB2(void) {
     enum te_cpuRegister l_rd;
 
     if((s_cpuOpcodeBuffer[0] & 0xf000) == 0xf000) { // MOV.B #xx:8, Rd
-        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 4;
+        l_rd = (s_cpuOpcodeBuffer[0] & 0x0f00) >> 8;
         l_operand = s_cpuOpcodeBuffer[0];
     } else if((s_cpuOpcodeBuffer[0] & 0xff00) == 0x6800) { // MOV.B @ERs, Rd
         enum te_cpuRegister l_ers = (s_cpuOpcodeBuffer[0] & 0x0070) >> 4;
