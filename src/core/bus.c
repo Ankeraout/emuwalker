@@ -7,6 +7,7 @@
 #include "common.h"
 #include "core/ram.h"
 #include "core/rom.h"
+#include "core/ssu.h"
 
 // =============================================================================
 // Private type declarations
@@ -21,7 +22,8 @@ struct ts_busPeripheral {
 enum te_busPeripheral {
     E_BUS_PERIPHERAL_NONE,
     E_BUS_PERIPHERAL_ROM,
-    E_BUS_PERIPHERAL_RAM
+    E_BUS_PERIPHERAL_RAM,
+    E_BUS_PERIPHERAL_SSU
 };
 
 // =============================================================================
@@ -91,6 +93,12 @@ struct ts_busPeripheral s_busPeripherals[] = {
         .read16 = ramRead16,
         .write8 = ramWrite8,
         .write16 = ramWrite16
+    },
+    {
+        .read8 = ssuRead8,
+        .read16 = ssuRead16,
+        .write8 = ssuWrite8,
+        .write16 = ssuWrite16
     }
 };
 
@@ -291,18 +299,18 @@ static struct ts_busPeripheral *s_io1BusPeripherals[] = {
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
-    &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
+    &s_busPeripherals[E_BUS_PERIPHERAL_SSU],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
     &s_busPeripherals[E_BUS_PERIPHERAL_NONE],
