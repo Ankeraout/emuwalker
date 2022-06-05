@@ -24,6 +24,10 @@ DIRECTORIES := $(dir $(OBJECTS))
 EXECUTABLE := bin/emuwalker
 DEPENDENCIES := $(patsubst obj/src/%.c.o, obj/src/%.c.d, $(OBJECTS))
 
+ifeq ($(OS),Windows_NT)
+	EXECUTABLE := $(EXECUTABLE).exe
+endif
+
 all: dirs $(EXECUTABLE)
 
 obj/%.c.o: %.c
