@@ -13,6 +13,7 @@
 #include "core/cpu.h"
 #include "core/ram.h"
 #include "core/rom.h"
+#include "core/ssu.h"
 
 // =============================================================================
 // Public functions definitions
@@ -20,6 +21,7 @@
 int coreReset(void) {
     cpuReset();
     ramReset();
+    ssuReset();
 
     return 0;
 }

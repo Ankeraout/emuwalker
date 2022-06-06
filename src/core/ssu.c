@@ -164,6 +164,26 @@ static uint8_t s_ssuSsrdr;
  */
 static uint8_t s_ssuSstdr;
 
+/**
+ * @brief This variable represents the SSTRSR register. This register is a shift
+ *        register that contains the data to be transmitted as well as the
+ *        received data. Note that this register is an internal register that
+ *        cannot be accessed by the CPU.
+ */
+static uint8_t s_ssuSstrsr;
+
+/**
+ * @brief This variable contains the clock counter for the prescaler.
+ * @details One SSU clock occurs when this variable reaches a value >= 256.
+ */
+static int s_ssuClockCounter;
+
+/**
+ * @brief This variable contains the bit counter for the current transfer.
+ * @details The transfer ends when this variable reaches 8.
+ */
+static int s_ssuBitCounter;
+
 // =============================================================================
 // Private function declarations
 // =============================================================================
@@ -194,6 +214,8 @@ void ssuReset(void) {
     s_ssuSssr.byte = 0x04;
     s_ssuSsrdr = 0x00;
     s_ssuSstdr = 0x00;
+    s_ssuClockCounter = 0;
+    s_ssuBitCounter = 0;
 }
 
 uint8_t ssuRead8(uint16_t p_address) {
@@ -231,7 +253,41 @@ void ssuWrite16(uint16_t p_address, uint16_t p_value) {
 }
 
 void ssuCycle(void) {
+    // If a transfer is in progress
+    if(s_ssuSssr.bitField.tend == 0) {
+        s_ssuClockCounter += 1 << s_ssuSsmr.bitField.cks;
 
+        if(s_ssuClockCounter >= 256) {
+            s_ssuClockCounter -= 256;
+
+            s_ssuBitCounter++;
+
+            if(s_ssuBitCounter == 8) {
+                // TODO: Actually perform the transfer
+
+                if(s_ssuSssr.bitField.tdre == 0) {
+                    // If there is data in the buffer, keep transferring data.
+                    s_ssuSstrsr = s_ssuSstdr;
+                    s_ssuSssr.bitField.tdre = 1;
+                } else {
+                    // Otherwise stop the transfer.
+                    s_ssuSssr.bitField.tend = 1;
+                }
+
+                if(s_ssuSssr.bitField.rdrf == 1) {
+                    // If there is still data left in SSRDR, then the new data
+                    // is lost, and an error flag is set.
+                    s_ssuSssr.bitField.orer = 1;
+                } else {
+                    // Otherwise SSRDR contains the received data.
+                    // TODO: Return the actual received data from the transfer.
+                    s_ssuSsrdr = 0xff;
+                }
+
+                s_ssuBitCounter = 0;
+            }
+        }
+    }
 }
 
 // =============================================================================
@@ -243,6 +299,14 @@ static uint8_t ssuReadSsrdr(void) {
 }
 
 static void ssuWriteSstdr(uint8_t p_value) {
-    s_ssuSssr.bitField.tdre = 0;
     s_ssuSstdr = p_value;
+
+    if(s_ssuSssr.bitField.tend == 1) {
+        // If no transfer is in progress, initiate a new transfer.
+        s_ssuSstrsr = s_ssuSstdr;
+        s_ssuSssr.bitField.tend = 0;
+    } else {
+        // If a transfer is already in progress, put the value in the buffer.
+        s_ssuSssr.bitField.tdre = 0;
+    }
 }

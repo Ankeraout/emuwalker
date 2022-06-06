@@ -122,6 +122,8 @@ int main(int p_argc, const char *p_argv[]) {
         l_returnValue = EXIT_FAILURE;
     }
 
+    coreReset();
+
     if(l_returnValue != EXIT_FAILURE) {
         while(true) {
             coreStep();

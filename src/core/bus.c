@@ -476,10 +476,14 @@ void busCycle(void) {
 }
 
 uint8_t busRead8(uint16_t p_address) {
+    busCycle();
+
     return busGetPeripheral(p_address)->read8(p_address);
 }
 
 uint16_t busRead16(uint16_t p_address) {
+    busCycle();
+
     struct ts_busPeripheral *l_busPeripheral =
         busGetPeripheral(p_address & 0xfffeU);
 
@@ -499,10 +503,14 @@ uint32_t busRead32(uint16_t p_address) {
 }
 
 void busWrite8(uint16_t p_address, uint8_t p_value) {
+    busCycle();
+
     busGetPeripheral(p_address)->write8(p_address, p_value);
 }
 
 void busWrite16(uint16_t p_address, uint16_t p_value) {
+    busCycle();
+
     struct ts_busPeripheral *l_busPeripheral =
         busGetPeripheral(p_address & 0xfffeU);
 
@@ -537,7 +545,7 @@ static inline struct ts_busPeripheral *busGetPeripheral(uint16_t p_address) {
     } else if(p_address <= 0xff7fU) { // 0xf780 - 0xff7f: RAM
         return &s_busPeripherals[E_BUS_PERIPHERAL_RAM];
     } else { // 0xff80-0xffff: IO2
-        return s_io2BusPeripherals[p_address & 0x00ffU];
+        return s_io2BusPeripherals[p_address & 0x007fU];
     }
 }
 
@@ -550,7 +558,7 @@ static uint8_t busOpenRead8(uint16_t p_address) {
 static uint16_t busOpenRead16(uint16_t p_address) {
     M_UNUSED_PARAMETER(p_address);
 
-    return 0xffU;
+    return 0xffffU;
 }
 
 static void busOpenWrite8(uint16_t p_address, uint8_t p_value) {
