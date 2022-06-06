@@ -10,6 +10,12 @@
 // Public function declarations
 // =============================================================================
 /**
+ * @brief Performs a bus cycle.
+ * @details This function shall only be called by the CPU module.
+ */
+void busCycle(void);
+
+/**
  * @brief Reads a byte from the bus.
  *
  * @param[in] p_address The address to read the byte from.

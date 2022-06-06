@@ -15,6 +15,11 @@
 void ssuReset(void);
 
 /**
+ * @brief Performs one cycle/clock of the SSU module.
+ */
+void ssuCycle(void);
+
+/**
  * @brief Reads a byte from SSU.
  *
  * @param[in] p_address The address to read the byte from.

@@ -471,6 +471,10 @@ static struct ts_busPeripheral *s_io2BusPeripherals[] = {
 // =============================================================================
 // Public function definitions
 // =============================================================================
+void busCycle(void) {
+    ssuCycle();
+}
+
 uint8_t busRead8(uint16_t p_address) {
     return busGetPeripheral(p_address)->read8(p_address);
 }
